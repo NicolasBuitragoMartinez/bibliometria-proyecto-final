@@ -3,6 +3,10 @@
 Universidad del Quindío · Análisis de Algoritmos 2026-2 · Docente: Sergio Augusto Cardona Torres
 Nicolas Buitrago Martinez · Juan David Martinez Valencia
 
+**Aplicación desplegada:** https://bibliometria-proyecto-final.onrender.com
+(plan gratuito de Render: si nadie la ha usado en los últimos 15 minutos, la primera carga tarda
+unos 50 segundos mientras el servidor arranca).
+
 Aplicación web que procesa los abstracts de los 20 artículos del corpus (inteligencia artificial en
 la educación) y ofrece los tres requerimientos funcionales del enunciado:
 
@@ -67,7 +71,10 @@ docker build -t bibliometria .
 docker run -p 8080:8080 bibliometria
 ```
 
-En Render basta con crear un *Blueprint* a partir de este repositorio (`render.yaml`).
+La aplicación está desplegada en Render como *Web Service* con entorno Docker, creado a partir de
+la URL pública de este repositorio (plan Free, región Virginia). Para volver a desplegar después de
+subir cambios se usa **Manual Deploy → Deploy latest commit** en el panel del servicio. También se
+puede crear el servicio como *Blueprint* a partir de `render.yaml`.
 
 ## Estructura
 
