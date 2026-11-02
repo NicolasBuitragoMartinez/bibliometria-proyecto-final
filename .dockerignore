@@ -1,0 +1,5 @@
+target/
+ia/modelos/
+*.md
+docs/
+resultados/

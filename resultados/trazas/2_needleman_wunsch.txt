@@ -1,0 +1,15 @@
+Matriz F (coincidencia +1, sustitución -1, hueco -1). Filas: [generative, artificial, intelligence, provides, opportunities, challenges, higher, education]; columnas: [emergence, generative, artificial, intelligence, ai, chatgpt, sparked, significant]
+		-	emergence	generative	artificial	intelligence	ai	chatgpt	sparked	significant
+-		0	-1	-2	-3	-4	-5	-6	-7	-8
+generative		-1	-1	0	-1	-2	-3	-4	-5	-6
+artificial		-2	-2	-1	1	0	-1	-2	-3	-4
+intelligence		-3	-3	-2	0	2	1	0	-1	-2
+provides		-4	-4	-3	-1	1	1	0	-1	-2
+opportunities		-5	-5	-4	-2	0	0	0	-1	-2
+challenges		-6	-6	-5	-3	-1	-1	-1	-1	-2
+higher		-7	-7	-6	-4	-2	-2	-2	-2	-2
+education		-8	-8	-7	-5	-3	-3	-3	-3	-3
+Alineamiento A: - | generative | artificial | intelligence | provides | opportunities | challenges | higher | education
+Alineamiento B: emergence | generative | artificial | intelligence | - | ai | chatgpt | sparked | significant
+Puntaje = -3, coincidencias = 3, longitud = 9, identidad = 0.3333
+Abstracts completos: 112 y 89 términos, puntaje = -98, coincidencias = 8, longitud del alineamiento = 114, identidad = 0.0702

@@ -1,0 +1,27 @@
+q	0	1	2	3	4	5	6	7
+P[q]	a	n	a	l	y	s	i	s
+π[q]	0	0	1	0	0	0	0	0
+Texto: "This study begins with a content analysis that explores GAI’s transformative impact" (n = 83)
+i=23 'a' = P[0] → q = 1
+i=24 ' ' ≠ P[1]='n' → q = π[0] = 0
+i=33 'a' = P[0] → q = 1
+i=34 'n' = P[1] → q = 2
+i=35 'a' = P[2] → q = 3
+i=36 'l' = P[3] → q = 4
+i=37 'y' = P[4] → q = 5
+i=38 's' = P[5] → q = 6
+i=39 'i' = P[6] → q = 7
+i=40 's' = P[7] → q = 8
+OCURRENCIA en la posición 33; q = π[7] = 0
+i=44 'a' = P[0] → q = 1
+i=45 't' ≠ P[1]='n' → q = π[0] = 0
+i=57 'a' = P[0] → q = 1
+i=58 'i' ≠ P[1]='n' → q = π[0] = 0
+i=64 'a' = P[0] → q = 1
+i=65 'n' = P[1] → q = 2
+i=66 's' ≠ P[2]='a' → q = π[1] = 0
+i=71 'a' = P[0] → q = 1
+i=72 't' ≠ P[1]='n' → q = π[0] = 0
+i=80 'a' = P[0] → q = 1
+i=81 'c' ≠ P[1]='n' → q = π[0] = 0
+Comparaciones = 89, posiciones = [33]

@@ -1,0 +1,7 @@
+# Despliegue en Render (https://render.com): New > Blueprint y seleccionar este repositorio.
+services:
+  - type: web
+    name: bibliometria-proyecto-final
+    runtime: docker
+    plan: free
+    healthCheckPath: /api/articulos

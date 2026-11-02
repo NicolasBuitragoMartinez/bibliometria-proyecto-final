@@ -1,0 +1,7 @@
+algoritmo,enfoque,pares,mediana_ms,q1_ms,q3_ms,ms_por_par
+Levenshtein,Clásico,190,1284.3962,1233.4465,1297.5208,6.75998
+Needleman-Wunsch,Clásico,190,17.6183,16.9847,18.4201,0.09273
+Jaccard,Clásico,190,1.3942,1.3394,1.6006,0.00734
+Coseno TF-IDF,Clásico,190,0.4454,0.4251,0.4670,0.00234
+GloVe (embeddings de palabras),IA,190,0.0432,0.0414,0.0564,0.00023
+MiniLM (Sentence-BERT),IA,190,0.0940,0.0915,0.0998,0.00049

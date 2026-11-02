@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bibliometría y algoritmos</title>
+  <link rel="stylesheet" href="estilos.css">
+</head>
+<body>
+  <header class="cabecera">
+    <div class="contenedor">
+      <p class="antetitulo">Universidad del Quindío · Análisis de Algoritmos 2026-2</p>
+      <h1>Análisis de algoritmos en el contexto de la bibliometría</h1>
+      <p class="subtitulo">Corpus de 20 artículos sobre inteligencia artificial en la educación: similitud textual,
+        agrupamiento jerárquico y búsqueda de patrones sobre sus abstracts.</p>
+      <nav class="pestanas" role="tablist">
+        <button role="tab" class="pestana activa" data-panel="corpus">Corpus</button>
+        <button role="tab" class="pestana" data-panel="similitud">1 · Similitud</button>
+        <button role="tab" class="pestana" data-panel="agrupamiento">2 · Agrupamiento</button>
+        <button role="tab" class="pestana" data-panel="busqueda">3 · Búsqueda de patrones</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="contenedor">
+    <section id="corpus" class="panel activo" role="tabpanel">
+      <h2>Corpus</h2>
+      <p class="ayuda">Título y autores extraídos automáticamente de cada PDF; el abstract es el texto que procesan
+        los algoritmos. Haga clic en una fila para ver el abstract.</p>
+      <div class="tabla-desplazable">
+        <table class="tabla" id="tabla-corpus">
+          <thead><tr><th>N.°</th><th>Título</th><th>Autores</th><th class="num">Palabras</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="similitud" class="panel" role="tabpanel">
+      <h2>Requerimiento 1 · Similitud textual</h2>
+      <p class="ayuda">Seleccione dos o más artículos. Se comparan sus abstracts con cuatro algoritmos clásicos
+        (Levenshtein, Needleman-Wunsch, Jaccard y coseno TF-IDF) y dos modelos de IA basados en embeddings.</p>
+      <div class="barra">
+        <button class="boton secundario" id="sim-caso">Caso de estudio (11 y 16)</button>
+        <button class="boton secundario" id="sim-limpiar">Limpiar selección</button>
+        <button class="boton" id="sim-comparar">Comparar seleccionados</button>
+        <span class="estado" id="sim-estado"></span>
+      </div>
+      <div class="selector" id="sim-selector"></div>
+      <div id="sim-resultado"></div>
+    </section>
+
+    <section id="agrupamiento" class="panel" role="tabpanel">
+      <h2>Requerimiento 2 · Agrupamiento jerárquico</h2>
+      <p class="ayuda">Los 20 abstracts se representan como vectores, se calcula la distancia d = 1 − coseno y se
+        aplican tres criterios de enlace implementados desde cero. La coherencia se compara con el coeficiente de
+        correlación cofenética (CCC) y el coeficiente de silueta.</p>
+      <div class="barra">
+        <label for="agr-representacion">Representación</label>
+        <select id="agr-representacion"></select>
+        <span class="estado" id="agr-estado"></span>
+      </div>
+      <div id="agr-resultado"></div>
+    </section>
+
+    <section id="busqueda" class="panel" role="tabpanel">
+      <h2>Requerimiento 3 · Búsqueda de patrones</h2>
+      <p class="ayuda">Busca las ocurrencias exactas del patrón en los 20 abstracts con Knuth-Morris-Pratt, Boyer-Moore
+        y Rabin-Karp, implementados sin funciones de búsqueda del lenguaje.</p>
+      <form class="barra" id="bus-formulario">
+        <label for="bus-patron">Patrón</label>
+        <input id="bus-patron" type="text" value="learning" maxlength="200" autocomplete="off">
+        <label class="casilla"><input type="checkbox" id="bus-mayusculas" checked> Ignorar mayúsculas</label>
+        <button class="boton" type="submit">Buscar</button>
+        <span class="estado" id="bus-estado"></span>
+      </form>
+      <div id="bus-resultado"></div>
+    </section>
+  </main>
+
+  <footer class="pie contenedor">
+    Proyecto final · Nicolas Buitrago Martinez y Juan David Martinez Valencia · Docente: Sergio Augusto Cardona Torres
+  </footer>
+  <script src="app.js"></script>
+</body>
+</html>

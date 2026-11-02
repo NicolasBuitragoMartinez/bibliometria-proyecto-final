@@ -1,0 +1,17 @@
+c	a	i	l	n	s	y	otro
+última(c)	2	6	3	1	7	4	-1
+j	0	1	2	3	4	5	6	7	8
+desplazamiento[j]	8	8	8	8	8	8	8	2	1
+s=0: falla en j=7 (texto 'u' ≠ patrón 's', 0 coincidencias); carácter malo = 8, sufijo bueno = 1 → desplaza 8
+s=8: falla en j=7 (texto 'n' ≠ patrón 's', 0 coincidencias); carácter malo = 6, sufijo bueno = 1 → desplaza 6
+s=14: falla en j=7 (texto 'h' ≠ patrón 's', 0 coincidencias); carácter malo = 8, sufijo bueno = 1 → desplaza 8
+s=22: falla en j=7 (texto 'e' ≠ patrón 's', 0 coincidencias); carácter malo = 8, sufijo bueno = 1 → desplaza 8
+s=30: falla en j=7 (texto 'y' ≠ patrón 's', 0 coincidencias); carácter malo = 3, sufijo bueno = 1 → desplaza 3
+s=33: OCURRENCIA; desplaza desplazamiento[0] = 8
+s=41: falla en j=7 (texto 'x' ≠ patrón 's', 0 coincidencias); carácter malo = 8, sufijo bueno = 1 → desplaza 8
+s=49: falla en j=7 (texto 'g' ≠ patrón 's', 0 coincidencias); carácter malo = 8, sufijo bueno = 1 → desplaza 8
+s=57: falla en j=7 (texto 'a' ≠ patrón 's', 0 coincidencias); carácter malo = 5, sufijo bueno = 1 → desplaza 5
+s=62: falla en j=7 (texto 'r' ≠ patrón 's', 0 coincidencias); carácter malo = 8, sufijo bueno = 1 → desplaza 8
+s=70: falla en j=7 (texto 'i' ≠ patrón 's', 0 coincidencias); carácter malo = 1, sufijo bueno = 1 → desplaza 1
+s=71: falla en j=7 (texto 'm' ≠ patrón 's', 0 coincidencias); carácter malo = 8, sufijo bueno = 1 → desplaza 8
+Comparaciones = 19, alineaciones = 12, posiciones = [33]

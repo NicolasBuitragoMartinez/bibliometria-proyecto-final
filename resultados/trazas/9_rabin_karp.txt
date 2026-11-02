@@ -1,0 +1,81 @@
+d = 256, q = 13, m = 8, d^(m-1) mod q = 9
+h(P): 'a'(97)→6 'n'(110)→8 'a'(97)→0 'l'(108)→4 'y'(121)→1 's'(115)→7 'i'(105)→12 's'(115)→2 
+h(P) = 2
+s	ventana	h(ventana)	resultado
+0	this stu	6	
+1	his stud	1	
+2	is study	0	
+3	s study 	3	
+4	 study b	1	
+5	study be	1	
+6	tudy beg	1	
+7	udy begi	0	
+8	dy begin	6	
+9	y begins	12	
+10	 begins 	11	
+11	begins w	5	
+12	egins wi	12	
+13	gins wit	12	
+14	ins with	7	
+15	ns with 	1	
+16	s with a	10	
+17	 with a 	11	
+18	with a c	11	
+19	ith a co	9	
+20	th a con	6	
+21	h a cont	4	
+22	 a conte	7	
+23	a conten	12	
+24	 content	11	
+25	content 	9	
+26	ontent a	11	
+27	ntent an	6	
+28	tent ana	3	
+29	ent anal	8	
+30	nt analy	7	
+31	t analys	4	
+32	 analysi	1	
+33	analysis	2	coincide el hash y el texto: OCURRENCIA
+34	nalysis 	6	
+35	alysis t	9	
+36	lysis th	11	
+37	ysis tha	2	colisión (espuria)
+38	sis that	5	
+39	is that 	5	
+40	s that e	0	
+41	 that ex	9	
+42	that exp	6	
+43	hat expl	9	
+44	at explo	10	
+45	t explor	4	
+46	 explore	10	
+47	explores	5	
+48	xplores 	8	
+49	plores g	10	
+50	lores ga	7	
+51	ores gai	0	
+52	res gai’	6	
+53	es gai’s	9	
+54	s gai’s 	5	
+55	 gai’s t	11	
+56	gai’s tr	0	
+57	ai’s tra	9	
+58	i’s tran	4	
+59	’s trans	5	
+60	s transf	1	
+61	 transfo	9	
+62	transfor	8	
+63	ransform	2	colisión (espuria)
+64	ansforma	7	
+65	nsformat	5	
+66	sformati	2	colisión (espuria)
+67	formativ	12	
+68	ormative	7	
+69	rmative 	9	
+70	mative i	0	
+71	ative im	3	
+72	tive imp	4	
+73	ive impa	6	
+74	ve impac	7	
+75	e impact	7	
+q = 13: colisiones = 3, comparaciones = 11; q = 1000000007: colisiones = 0, comparaciones = 8
