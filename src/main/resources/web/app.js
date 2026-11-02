@@ -199,6 +199,29 @@ $("#bus-formulario").addEventListener("submit", async (evento) => {
   }
 });
 
-cargarCorpus().catch((e) => {
-  $("#tabla-corpus tbody").innerHTML = `<tr><td colspan="4" class="error">${escapar(e.message)}</td></tr>`;
-});
+// ---------- Enlaces directos: #similitud=11,16 · #agrupamiento=minilm · #busqueda=learning ----------
+function abrirDesdeEnlace() {
+  const [panel, valor] = decodeURIComponent(location.hash.slice(1)).split("=");
+  const pestana = document.querySelector(`.pestana[data-panel="${panel}"]`);
+  if (!pestana) return;
+  if (panel === "similitud" && valor) {
+    estado.seleccion = new Set(valor.split(",").map(Number));
+    dibujarSelector();
+    comparar();
+  }
+  if (panel === "agrupamiento") {
+    cargarAgrupamiento(valor);
+    $("#agr-resultado").dataset.cargado = "si";
+  }
+  pestana.click();
+  if (panel === "busqueda" && valor) {
+    $("#bus-patron").value = valor;
+    $("#bus-formulario").requestSubmit();
+  }
+}
+
+cargarCorpus()
+  .then(abrirDesdeEnlace)
+  .catch((e) => {
+    $("#tabla-corpus tbody").innerHTML = `<tr><td colspan="4" class="error">${escapar(e.message)}</td></tr>`;
+  });

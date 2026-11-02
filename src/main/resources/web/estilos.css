@@ -126,7 +126,7 @@ body {
 .barra-valor { height: 10px; border-radius: 5px; background: var(--azul); }
 .barra-valor.ia { background: var(--naranja); }
 
-.dendrograma svg { width: 100%; height: auto; }
+.dendrograma svg { width: 100%; max-width: 760px; height: auto; display: block; }
 
 .fragmento { font-family: Consolas, "Cascadia Mono", monospace; font-size: 13px; padding: 4px 0; color: #333; }
 .fragmento mark { background: #ffe08a; padding: 0 2px; border-radius: 3px; }
