@@ -232,7 +232,9 @@ async function comparar() {
           técnico compara este par con los 190 pares del corpus.</p></div>`;
     }
     html += '<div class="rejilla" style="margin-top:16px">' + d.algoritmos.map((a) => matrizHtml(a, numeros)).join("") + "</div>";
+    if (numeros.length === 2) html += '<div class="bloque" id="matriz-dp"><span class="esqueleto"></span></div>';
     $("#sim-resultado").innerHTML = html;
+    if (numeros.length === 2) cargarMatriz(numeros[0], numeros[1]);
   } catch (e) {
     mostrarEstado("#sim-estado", e.message, "error");
     $("#sim-resultado").innerHTML = "";
@@ -265,6 +267,190 @@ $("#sim-caso").addEventListener("click", () => {
   dibujarSelector();
   comparar();
 });
+
+// ---------- Similitud: matriz de programación dinámica paso a paso ----------
+// Llena la matriz de Levenshtein o de Needleman-Wunsch celda por celda con su recurrencia y termina
+// mostrando el camino óptimo. La matriz y el camino los calcula el servidor con las clases de cada algoritmo.
+const matrizDp = { datos: null, algoritmo: "levenshtein", n: 12, paso: 0, a: 0, b: 0 };
+
+async function cargarMatriz(a, b) {
+  Object.assign(matrizDp, { a, b });
+  try {
+    const parametros = new URLSearchParams({ algoritmo: matrizDp.algoritmo, a, b, n: matrizDp.n });
+    matrizDp.datos = await api("/api/matriz?" + parametros);
+    matrizDp.paso = 0;
+    dibujarMatriz();
+  } catch (e) {
+    $("#matriz-dp").innerHTML = `<div class="bloque-cabeza"><h3>Matriz paso a paso</h3></div><p class="error">${escapar(e.message)}</p>`;
+  }
+}
+
+const simbolo = (s) => (s === " " ? "·" : escapar(s));
+const valor = (v) => (v < 0 ? "−" + Math.abs(v) : String(v));
+const veces = (cantidad, singular, plural) => `${cantidad} ${cantidad === 1 ? singular : plural}`;
+
+function dibujarMatriz() {
+  const d = matrizDp.datos;
+  const lev = d.clave === "levenshtein";
+  const letra = lev ? "D" : "F";
+  const m = d.filas.length;
+  const n = d.columnas.length;
+  const formula = lev
+    ? `D[i][j] = mín(D[i−1][j−1] + costo, D[i−1][j] + 1, D[i][j−1] + 1), con costo 0 si los caracteres coinciden y 1 si no`
+    : `F[i][j] = máx(F[i−1][j−1] + s(aᵢ, bⱼ), F[i−1][j] − 1, F[i][j−1] − 1), con s = +1 si los términos coinciden y −1 si no`;
+  const encabezado = `<tr><th scope="col">${letra}</th><th scope="col">ε</th>${d.columnas
+    .map((c, j) => `<th scope="col" data-col="${j + 1}" class="${lev ? "" : "vertical"}">${simbolo(c)}</th>`).join("")}</tr>`;
+  const filas = d.matriz.map((fila, i) => `<tr><th scope="row" data-fila="${i}">${i === 0 ? "ε" : simbolo(d.filas[i - 1])}</th>${fila
+    .map((_, j) => `<td data-i="${i}" data-j="${j}"></td>`).join("")}</tr>`).join("");
+
+  $("#matriz-dp").innerHTML = `
+    <div class="bloque-cabeza"><h3>Matriz paso a paso</h3>
+      <span class="meta">Artículo ${d.a.numero} (filas) frente a artículo ${d.b.numero} (columnas) · primeros ${m} y ${n} ${d.unidad}</span></div>
+    <div class="herramientas">
+      <div class="segmentado" role="radiogroup" aria-label="Algoritmo de programación dinámica">
+        <button type="button" role="radio" data-algoritmo="levenshtein" aria-checked="${lev}">Levenshtein</button>
+        <button type="button" role="radio" data-algoritmo="needleman" aria-checked="${!lev}">Needleman-Wunsch</button>
+      </div>
+      <label class="control-n">n =
+        <input type="range" id="matriz-n" min="2" max="20" value="${matrizDp.n}" aria-label="Cantidad de ${d.unidad}">
+        <output id="matriz-n-valor">${matrizDp.n}</output> ${d.unidad}</label>
+    </div>
+    <p class="formula"><code>${formula}</code></p>
+    <div class="marco-dp" tabindex="0" aria-label="Matriz de programación dinámica; use las flechas para avanzar">
+      <table class="matriz-dp"><thead>${encabezado}</thead><tbody>${filas}</tbody></table>
+    </div>
+    <ul class="leyenda-paso"><li><i class="actual"></i>Celda que se calcula</li><li><i class="fuente"></i>Celdas de las que depende</li>
+      <li><i class="camino"></i>Camino óptimo (al final, en negrita)</li></ul>
+    <div class="paso-control">
+      <button type="button" class="boton secundario icono" id="matriz-anterior" aria-label="Paso anterior">${FLECHA_IZQ}</button>
+      <input type="range" id="matriz-rango" min="0" max="${m * n + 1}" value="0" aria-label="Paso">
+      <button type="button" class="boton secundario icono" id="matriz-siguiente" aria-label="Paso siguiente">${FLECHA_DER}</button>
+      <button type="button" class="boton fantasma" id="matriz-final">Ver el camino óptimo</button>
+      <span class="meta" id="matriz-numero"></span>
+    </div>
+    <p class="explicacion" id="matriz-explicacion" aria-live="polite"></p>
+    <div id="matriz-alineamiento"></div>`;
+
+  const contenedor = $("#matriz-dp");
+  contenedor.querySelectorAll("[data-algoritmo]").forEach((b) => b.addEventListener("click", () => {
+    if (b.dataset.algoritmo === matrizDp.algoritmo) return;
+    matrizDp.algoritmo = b.dataset.algoritmo;
+    cargarMatriz(matrizDp.a, matrizDp.b);
+  }));
+  $("#matriz-n").addEventListener("input", (e) => { $("#matriz-n-valor").textContent = e.target.value; });
+  $("#matriz-n").addEventListener("change", (e) => {
+    matrizDp.n = Number(e.target.value);
+    cargarMatriz(matrizDp.a, matrizDp.b);
+  });
+  const ir = (paso) => {
+    matrizDp.paso = Math.max(0, Math.min(m * n + 1, paso));
+    actualizarMatriz();
+  };
+  $("#matriz-anterior").addEventListener("click", () => ir(matrizDp.paso - 1));
+  $("#matriz-siguiente").addEventListener("click", () => ir(matrizDp.paso + 1));
+  $("#matriz-final").addEventListener("click", () => ir(m * n + 1));
+  $("#matriz-rango").addEventListener("input", (e) => ir(Number(e.target.value)));
+  contenedor.querySelector(".marco-dp").addEventListener("keydown", (e) => {
+    if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+      e.preventDefault();
+      ir(matrizDp.paso + (e.key === "ArrowRight" ? 1 : -1));
+    }
+  });
+  actualizarMatriz();
+}
+
+/** Operación de cada paso del camino: diagonal (coincidencia o sustitución), abajo o derecha. */
+function operacionesDelCamino(d) {
+  const lev = d.clave === "levenshtein";
+  return d.camino.slice(1).map(([i, j], k) => {
+    const [i0, j0] = d.camino[k];
+    if (i === i0 + 1 && j === j0 + 1) {
+      const igual = d.filas[i0] === d.columnas[j0];
+      return { a: d.filas[i0], b: d.columnas[j0], tipo: igual ? "coincidencia" : "sustitución", marca: igual ? "=" : "≠" };
+    }
+    if (i === i0 + 1) return { a: d.filas[i0], b: "–", tipo: lev ? "eliminación" : "hueco en b", marca: "−" };
+    return { a: "–", b: d.columnas[j0], tipo: lev ? "inserción" : "hueco en a", marca: "+" };
+  });
+}
+
+function actualizarMatriz() {
+  const d = matrizDp.datos;
+  const lev = d.clave === "levenshtein";
+  const letra = lev ? "D" : "F";
+  const m = d.filas.length;
+  const n = d.columnas.length;
+  const k = matrizDp.paso;
+  const final = k === m * n + 1;
+  const [ci, cj] = k >= 1 && !final ? [Math.floor((k - 1) / n) + 1, ((k - 1) % n) + 1] : [-1, -1];
+  // La celda (i, j) se calcula en el paso (i − 1)·n + j; la fila y la columna 0 son el caso base (paso 0).
+  const calculada = (i, j) => i === 0 || j === 0 || final || (i - 1) * n + j <= k;
+  const enCamino = new Set(final ? d.camino.map(([i, j]) => i + "," + j) : []);
+  const fuentes = new Set(ci > 0 ? [`${ci - 1},${cj - 1}`, `${ci - 1},${cj}`, `${ci},${cj - 1}`] : []);
+
+  $("#matriz-dp").querySelectorAll("td").forEach((td) => {
+    const i = Number(td.dataset.i);
+    const j = Number(td.dataset.j);
+    td.textContent = calculada(i, j) ? valor(d.matriz[i][j]) : "";
+    td.className = i === ci && j === cj ? "actual" : fuentes.has(i + "," + j) ? "fuente" : enCamino.has(i + "," + j) ? "camino" : "";
+  });
+  $("#matriz-dp").querySelectorAll("th.activa").forEach((th) => th.classList.remove("activa"));
+  if (ci > 0) {
+    $("#matriz-dp").querySelector(`th[data-fila="${ci}"]`).classList.add("activa");
+    $("#matriz-dp").querySelector(`th[data-col="${cj}"]`).classList.add("activa");
+  }
+
+  let texto;
+  if (k === 0) {
+    texto = lev
+      ? `Caso base: D[i][0] = i (borrar los primeros i caracteres de a) y D[0][j] = j (insertar los primeros j de b).`
+      : `Caso base: F[i][0] = −i y F[0][j] = −j, porque alinear contra huecos cuesta −1 por término.`;
+  } else if (!final) {
+    const M = d.matriz;
+    const x = d.filas[ci - 1];
+    const y = d.columnas[cj - 1];
+    const igual = x === y;
+    if (lev) {
+      const costo = igual ? d.costos.coincidencia : d.costos.sustitucion;
+      texto = `D[${ci}][${cj}]: «${x === " " ? "espacio" : x}» y «${y === " " ? "espacio" : y}» ${igual ? "coinciden (costo 0)" : "son distintos (costo 1)"}. `
+        + `mín(${igual ? "coincidencia" : "sustitución"} ${M[ci - 1][cj - 1]} + ${costo} = ${M[ci - 1][cj - 1] + costo}, `
+        + `eliminación ${M[ci - 1][cj]} + 1 = ${M[ci - 1][cj] + 1}, inserción ${M[ci][cj - 1]} + 1 = ${M[ci][cj - 1] + 1}) = ${M[ci][cj]}.`;
+    } else {
+      const s = igual ? d.costos.coincidencia : d.costos.sustitucion;
+      const h = d.costos.hueco;
+      texto = `F[${ci}][${cj}]: «${x}» y «${y}» ${igual ? "coinciden (s = +1)" : "son distintos (s = −1)"}. `
+        + `máx(diagonal ${valor(M[ci - 1][cj - 1])} ${s > 0 ? "+" : "−"} 1 = ${valor(M[ci - 1][cj - 1] + s)}, `
+        + `hueco en b ${valor(M[ci - 1][cj])} − 1 = ${valor(M[ci - 1][cj] + h)}, `
+        + `hueco en a ${valor(M[ci][cj - 1])} − 1 = ${valor(M[ci][cj - 1] + h)}) = ${valor(M[ci][cj])}.`;
+    }
+  } else {
+    const ops = operacionesDelCamino(d);
+    const cuenta = (tipo) => ops.filter((o) => o.tipo === tipo).length;
+    texto = lev
+      ? `Distancia de edición: D[${m}][${n}] = ${d.resultado}. El camino óptimo usa ${veces(cuenta("coincidencia"), "coincidencia", "coincidencias")}, `
+        + `${veces(cuenta("sustitución"), "sustitución", "sustituciones")}, ${veces(cuenta("eliminación"), "eliminación", "eliminaciones")} `
+        + `y ${veces(cuenta("inserción"), "inserción", "inserciones")}.`
+      : `Puntaje del alineamiento: F[${m}][${n}] = ${valor(d.resultado)}. El camino óptimo tiene `
+        + `${veces(cuenta("coincidencia"), "coincidencia", "coincidencias")}, ${veces(cuenta("sustitución"), "sustitución", "sustituciones")} `
+        + `y ${veces(cuenta("hueco en a") + cuenta("hueco en b"), "hueco", "huecos")}.`;
+  }
+  const explicacion = $("#matriz-explicacion");
+  explicacion.textContent = texto;
+  explicacion.className = "explicacion" + (final ? " ok" : "");
+
+  // Al final, el alineamiento que corresponde al camino: = coincide, ≠ sustitución, − y + huecos.
+  const ops = final ? operacionesDelCamino(d) : [];
+  $("#matriz-alineamiento").innerHTML = final ? `<div class="marco-dp"><table class="aux alineamiento-dp">
+      <tr><th>a (art. ${d.a.numero})</th>${ops.map((o) => `<td>${simbolo(o.a)}</td>`).join("")}</tr>
+      <tr><th>b (art. ${d.b.numero})</th>${ops.map((o) => `<td>${simbolo(o.b)}</td>`).join("")}</tr>
+      <tr><th>operación</th>${ops.map((o) => `<td title="${o.tipo}">${o.marca}</td>`).join("")}</tr></table></div>
+    <p class="meta">= coincide · ≠ sustitución · − ${lev ? "eliminación" : "hueco en b"} · + ${lev ? "inserción" : "hueco en a"}</p>` : "";
+
+  $("#matriz-rango").value = k;
+  $("#matriz-numero").textContent = k === 0 ? `Caso base · ${m * n} celdas por calcular`
+    : final ? "Camino óptimo" : `Celda ${k} de ${m * n} · ${letra}[${ci}][${cj}]`;
+  $("#matriz-anterior").disabled = k === 0;
+  $("#matriz-siguiente").disabled = final;
+}
 
 // ---------- Agrupamiento ----------
 async function cargarAgrupamiento(representacion) {

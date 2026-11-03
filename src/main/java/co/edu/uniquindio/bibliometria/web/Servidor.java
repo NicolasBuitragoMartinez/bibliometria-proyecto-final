@@ -36,6 +36,8 @@ import co.edu.uniquindio.bibliometria.ranking.medicion.MedidorTiempos.Medicion;
 import co.edu.uniquindio.bibliometria.ranking.ordenamiento.AlgoritmoOrdenamiento;
 import co.edu.uniquindio.bibliometria.similitud.AlgoritmoSimilitud;
 import co.edu.uniquindio.bibliometria.similitud.CatalogoSimilitud;
+import co.edu.uniquindio.bibliometria.similitud.Levenshtein;
+import co.edu.uniquindio.bibliometria.similitud.NeedlemanWunsch;
 import co.edu.uniquindio.bibliometria.texto.CorpusProcesado;
 
 /**
@@ -48,11 +50,14 @@ import co.edu.uniquindio.bibliometria.texto.CorpusProcesado;
  *   GET /api/busqueda?patron=learning&mayusculas=no      ocurrencias con KMP, Boyer-Moore y Rabin-Karp
  *   GET /api/pasos?patron=analysis&articulo=18&posicion=426&q=13
  *                                                        paso a paso de los tres algoritmos en una oración
+ *   GET /api/matriz?algoritmo=levenshtein&a=11&b=16&n=12 matriz de programación dinámica y camino óptimo
  */
 public final class Servidor {
 
     private static final int CONTEXTO_FRAGMENTO = 45;
     private static final int MAXIMO_PATRON = 200;
+    private static final int MATRIZ_MINIMO = 2;
+    private static final int MATRIZ_MAXIMO = 20;
 
     private final CorpusProcesado corpus;
     private Map<String, Object> ranking;
@@ -69,6 +74,7 @@ public final class Servidor {
         servidor.createContext("/api/agrupamiento", ex -> responder(ex, this::agrupamiento));
         servidor.createContext("/api/busqueda", ex -> responder(ex, this::busqueda));
         servidor.createContext("/api/pasos", ex -> responder(ex, this::pasos));
+        servidor.createContext("/api/matriz", ex -> responder(ex, this::matriz));
         servidor.createContext("/", this::recursoEstatico);
         servidor.setExecutor(Executors.newFixedThreadPool(4));
         servidor.start();
@@ -297,14 +303,95 @@ public final class Servidor {
             recorridos.add(m);
         }
         Map<String, Object> respuesta = new LinkedHashMap<>();
-        respuesta.put("articulo", Map.of("numero", articulo.numero(), "titulo", articulo.titulo(),
-                "autoresCortos", articulo.autoresCortos(), "anio", articulo.anio()));
+        respuesta.put("articulo", resumenArticulo(articulo));
         respuesta.put("desde", rango[0]);
         respuesta.put("texto", texto);
         respuesta.put("patron", patron.toLowerCase(Locale.ROOT));
         respuesta.put("q", primo);
         respuesta.put("algoritmos", recorridos);
         return respuesta;
+    }
+
+    /**
+     * Matriz de programación dinámica entre dos abstracts y su camino óptimo, para la demostración paso
+     * a paso de la pestaña de similitud: Levenshtein sobre los primeros n caracteres del texto
+     * normalizado y Needleman-Wunsch sobre los primeros n términos, las mismas representaciones que usa
+     * el cálculo de la similitud. Las matrices y los caminos son los de las clases de cada algoritmo.
+     */
+    private Map<String, Object> matriz(Map<String, String> parametros) {
+        String algoritmo = parametros.getOrDefault("algoritmo", "levenshtein");
+        boolean levenshtein = "levenshtein".equals(algoritmo);
+        if (!levenshtein && !"needleman".equals(algoritmo)) {
+            throw new IllegalArgumentException("Algoritmo desconocido: " + algoritmo + " (use levenshtein o needleman)");
+        }
+        int n = entero(parametros, "n", 12);
+        if (n < MATRIZ_MINIMO || n > MATRIZ_MAXIMO) {
+            throw new IllegalArgumentException("n debe estar entre " + MATRIZ_MINIMO + " y " + MATRIZ_MAXIMO);
+        }
+        int a = corpus.indice(entero(parametros, "a", 11));
+        int b = corpus.indice(entero(parametros, "b", 16));
+
+        List<String> filas = new ArrayList<>();
+        List<String> columnas = new ArrayList<>();
+        int[][] matriz;
+        List<int[]> camino;
+        Map<String, Object> costos = new LinkedHashMap<>();
+        if (levenshtein) {
+            String textoA = corpus.textoNormalizado(a).substring(0, Math.min(n, corpus.textoNormalizado(a).length()));
+            String textoB = corpus.textoNormalizado(b).substring(0, Math.min(n, corpus.textoNormalizado(b).length()));
+            for (int i = 0; i < textoA.length(); i++) {
+                filas.add(String.valueOf(textoA.charAt(i)));
+            }
+            for (int j = 0; j < textoB.length(); j++) {
+                columnas.add(String.valueOf(textoB.charAt(j)));
+            }
+            matriz = Levenshtein.matriz(textoA, textoB);
+            camino = Levenshtein.camino(textoA, textoB, matriz);
+            costos.put("coincidencia", 0);
+            costos.put("sustitucion", 1);
+            costos.put("insercion", 1);
+            costos.put("eliminacion", 1);
+        } else {
+            filas.addAll(corpus.tokens(a).subList(0, Math.min(n, corpus.tokens(a).size())));
+            columnas.addAll(corpus.tokens(b).subList(0, Math.min(n, corpus.tokens(b).size())));
+            matriz = NeedlemanWunsch.matriz(filas, columnas);
+            camino = NeedlemanWunsch.camino(filas, columnas, matriz);
+            costos.put("coincidencia", NeedlemanWunsch.COINCIDENCIA);
+            costos.put("sustitucion", NeedlemanWunsch.SUSTITUCION);
+            costos.put("hueco", NeedlemanWunsch.HUECO);
+        }
+
+        List<Object> valores = new ArrayList<>();
+        for (int[] fila : matriz) {
+            List<Integer> l = new ArrayList<>();
+            for (int v : fila) {
+                l.add(v);
+            }
+            valores.add(l);
+        }
+        List<Object> pasos = new ArrayList<>();
+        for (int[] celda : camino) {
+            pasos.add(List.of(celda[0], celda[1]));
+        }
+        Map<String, Object> respuesta = new LinkedHashMap<>();
+        respuesta.put("algoritmo", levenshtein ? "Levenshtein" : "Needleman-Wunsch");
+        respuesta.put("clave", algoritmo);
+        respuesta.put("optimo", levenshtein ? "min" : "max");
+        respuesta.put("unidad", levenshtein ? "caracteres" : "términos");
+        respuesta.put("costos", costos);
+        respuesta.put("a", resumenArticulo(corpus.articulos().get(a)));
+        respuesta.put("b", resumenArticulo(corpus.articulos().get(b)));
+        respuesta.put("filas", filas);
+        respuesta.put("columnas", columnas);
+        respuesta.put("matriz", valores);
+        respuesta.put("camino", pasos);
+        respuesta.put("resultado", matriz[filas.size()][columnas.size()]);
+        return respuesta;
+    }
+
+    private static Map<String, Object> resumenArticulo(Articulo articulo) {
+        return Map.of("numero", articulo.numero(), "titulo", articulo.titulo(),
+                "autoresCortos", articulo.autoresCortos(), "anio", articulo.anio());
     }
 
     private static int entero(Map<String, String> parametros, String nombre, int porDefecto) {

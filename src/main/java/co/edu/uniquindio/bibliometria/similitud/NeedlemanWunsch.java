@@ -94,6 +94,30 @@ public final class NeedlemanWunsch implements AlgoritmoSimilitud {
         return new Alineamiento(alineadaA, alineadaB, f[a.size()][b.size()], coincidencias);
     }
 
+    /**
+     * Camino óptimo de F[0][0] a F[m][n], con la misma preferencia que alinear ante un empate:
+     * diagonal, después arriba (hueco en b) y por último izquierda (hueco en a).
+     */
+    public static List<int[]> camino(List<String> a, List<String> b, int[][] f) {
+        List<int[]> camino = new ArrayList<>();
+        int i = a.size();
+        int j = b.size();
+        camino.add(new int[] {i, j});
+        while (i > 0 || j > 0) {
+            if (i > 0 && j > 0 && f[i][j] == f[i - 1][j - 1] + puntaje(a.get(i - 1), b.get(j - 1))) {
+                i--;
+                j--;
+            } else if (i > 0 && f[i][j] == f[i - 1][j] + HUECO) {
+                i--;
+            } else {
+                j--;
+            }
+            camino.add(new int[] {i, j});
+        }
+        Collections.reverse(camino);
+        return camino;
+    }
+
     private static int puntaje(String x, String y) {
         return x.equals(y) ? COINCIDENCIA : SUSTITUCION;
     }

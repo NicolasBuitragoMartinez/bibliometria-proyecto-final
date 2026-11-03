@@ -1,5 +1,9 @@
 package co.edu.uniquindio.bibliometria.similitud;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 import co.edu.uniquindio.bibliometria.texto.CorpusProcesado;
 
 /**
@@ -72,5 +76,30 @@ public final class Levenshtein implements AlgoritmoSimilitud {
             }
         }
         return d;
+    }
+
+    /**
+     * Camino óptimo de la matriz, de D[0][0] a D[m][n]: cada paso es diagonal (coincidencia o
+     * sustitución), hacia abajo (eliminación de un carácter de a) o hacia la derecha (inserción de
+     * un carácter de b). Ante un empate se prefiere la diagonal y después la eliminación.
+     */
+    public static List<int[]> camino(String a, String b, int[][] d) {
+        List<int[]> camino = new ArrayList<>();
+        int i = a.length();
+        int j = b.length();
+        camino.add(new int[] {i, j});
+        while (i > 0 || j > 0) {
+            if (i > 0 && j > 0 && d[i][j] == d[i - 1][j - 1] + (a.charAt(i - 1) == b.charAt(j - 1) ? 0 : 1)) {
+                i--;
+                j--;
+            } else if (i > 0 && d[i][j] == d[i - 1][j] + 1) {
+                i--;
+            } else {
+                j--;
+            }
+            camino.add(new int[] {i, j});
+        }
+        Collections.reverse(camino);
+        return camino;
     }
 }

@@ -1,7 +1,7 @@
 # Análisis de algoritmos en el contexto de la bibliometría — Proyecto final
 
 Universidad del Quindío · Análisis de Algoritmos 2026-2 · Docente: Sergio Augusto Cardona Torres
-Nicolas Buitrago Martinez · Juan David Martinez Valencia
+Nicolas Buitrago Martinez · Juan David Martinez Valencia · Luisa Fernanda Castañeda Cano
 
 **Aplicación desplegada:** https://bibliometria-proyecto-final.onrender.com
 (plan gratuito de Render: si nadie la ha usado en los últimos 15 minutos, la primera carga tarda
@@ -29,12 +29,16 @@ la similitud del coseno y la distancia euclidiana entre los vectores las calcula
 La interfaz tiene cinco pestañas: Corpus (título, autores, año y abstract de cada artículo), Ranking
 de términos, Similitud, Agrupamiento (con los artículos de cada grupo) y Búsqueda de patrones, que
 incluye un **paso a paso** de KMP, Boyer-Moore y Rabin-Karp sobre la oración de cada ocurrencia.
+Al comparar dos artículos, la pestaña Similitud muestra además la **matriz paso a paso** de
+Levenshtein o de Needleman-Wunsch: la llena celda por celda con su recurrencia y termina con el
+camino óptimo y el alineamiento que le corresponde.
 
 | Consulta | Respuesta |
 |---|---|
 | `GET /api/articulos` | Número, título, autores, año, palabras y abstract |
 | `GET /api/ranking` | Cifras del corpus, top 15 de los tres ordenamientos y tiempos en el servidor |
 | `GET /api/similitud?articulos=11,16` | Matriz y tiempo de los seis algoritmos |
+| `GET /api/matriz?algoritmo=levenshtein&a=11&b=16&n=12` | Matriz de programación dinámica (Levenshtein sobre los primeros n caracteres o `needleman` sobre los primeros n términos, n de 2 a 20) y camino óptimo |
 | `GET /api/agrupamiento?representacion=tfidf` | Fusiones, CCC, silueta, grupos del mejor corte y dendrogramas |
 | `GET /api/busqueda?patron=learning` | Ocurrencias y estadísticas de los tres algoritmos |
 | `GET /api/pasos?patron=analysis&articulo=18&posicion=426&q=pequeno` | Cada alineación de los tres algoritmos |

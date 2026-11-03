@@ -238,6 +238,30 @@ mark { background: var(--marca); color: var(--tinta); padding: 0 2px; border-rad
 .explicacion.ok { border-left-color: var(--exito); }
 .explicacion.aviso { border-left-color: var(--ia); }
 
+/* ---------- Similitud: matriz de programación dinámica paso a paso ---------- */
+#matriz-dp .herramientas { margin-bottom: 12px; }
+.control-n { display: inline-flex; align-items: center; gap: 10px; font-size: 14px; color: var(--tinta-2); }
+.control-n input { width: 150px; accent-color: var(--clasico); }
+.control-n output { min-width: 2ch; font-weight: 600; color: var(--tinta); }
+.formula { margin: 0 0 14px; font-size: 14px; color: var(--tinta-2); }
+.formula code { font-family: var(--mono); font-size: 13.5px; color: var(--tinta); }
+.marco-dp { overflow-x: auto; padding-bottom: 4px; }
+.matriz-dp { border-collapse: collapse; font-family: var(--mono); font-size: 13.5px; }
+.matriz-dp th, .matriz-dp td { min-width: 34px; height: 30px; padding: 2px 6px; text-align: center; border: 1px solid var(--borde); }
+.matriz-dp th { background: var(--superficie-2); color: var(--tinta-2); font-weight: 500; white-space: nowrap; }
+.matriz-dp th[scope="row"] { text-align: right; }
+/* Los términos de Needleman-Wunsch se escriben en vertical para que las columnas no se ensanchen. */
+.matriz-dp th.vertical { writing-mode: vertical-rl; transform: rotate(180deg); height: auto; padding: 8px 4px; text-align: left; }
+.matriz-dp th.activa { background: var(--clasico-suave); color: var(--clasico); font-weight: 600; }
+.matriz-dp td.fuente { background: var(--clasico-suave); color: var(--clasico); }
+.matriz-dp td.actual { background: var(--clasico); color: #fff; font-weight: 600; }
+.matriz-dp td.camino { background: #d5eee2; color: #11523b; font-weight: 600; box-shadow: inset 0 0 0 2px var(--exito); }
+.leyenda-paso i.actual { background: var(--clasico); box-shadow: none; }
+.leyenda-paso i.fuente { background: var(--clasico-suave); box-shadow: none; }
+.leyenda-paso i.camino { background: #d5eee2; box-shadow: inset 0 0 0 2px var(--exito); }
+.alineamiento-dp { margin-top: 4px; }
+.alineamiento-dp td { min-width: 0; padding: 3px 6px; }
+
 /* ---------- Cruce con los metadatos: artículos comparados y grupos ---------- */
 .comparados summary, .grupos summary { cursor: pointer; font-size: 14px; font-weight: 500; color: var(--tinta); }
 .comparados ul, .grupo ul { margin: 8px 0 0; padding: 0; list-style: none; font-size: 14px; color: var(--tinta-2); }
