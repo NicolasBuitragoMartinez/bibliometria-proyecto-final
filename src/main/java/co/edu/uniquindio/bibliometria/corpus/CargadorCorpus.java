@@ -20,8 +20,8 @@ import co.edu.uniquindio.bibliometria.modelo.Articulo;
  * Carga los artículos de la carpeta {@code pdfs}. Lo extraído de cada PDF se guarda en archivos de
  * texto que el programa reutiliza en las ejecuciones siguientes (así el servidor arranca rápido):
  * {@code abstracts/<archivo>.txt} con el abstract y {@code metadatos/<archivo>.txt} con el título en
- * la primera línea y los autores, separados por "; ", en la segunda. Si se borran, se vuelven a
- * generar a partir de los PDF.
+ * la primera línea, los autores, separados por "; ", en la segunda y el año en la tercera. Si se
+ * borran, se vuelven a generar a partir de los PDF.
  */
 public final class CargadorCorpus {
 
@@ -54,25 +54,29 @@ public final class CargadorCorpus {
             Path txtMetadatos = carpetaMetadatos.resolve(base + ".txt");
 
             TextoPdf texto = null;
-            if (!Files.exists(txtAbstract) || !Files.exists(txtMetadatos)) {
-                texto = LectorPdf.leer(pdf);
-            }
             if (!Files.exists(txtAbstract)) {
+                texto = LectorPdf.leer(pdf);
                 Files.writeString(txtAbstract, DelimitadorAbstract.extraer(texto.primerasPaginas(), texto.completo()),
                         StandardCharsets.UTF_8);
             }
-            if (!Files.exists(txtMetadatos)) {
-                Metadatos m = ExtractorMetadatos.extraer(texto);
-                Files.writeString(txtMetadatos, m.titulo() + "\n" + String.join(SEPARADOR_AUTORES, m.autores()) + "\n",
-                        StandardCharsets.UTF_8);
+            List<String> lineas = Files.exists(txtMetadatos)
+                    ? Files.readAllLines(txtMetadatos, StandardCharsets.UTF_8) : List.of();
+            if (lineas.size() < 3) {
+                // Falta el archivo, o es de una versión anterior que no guardaba el año: se completa sin
+                // cambiar el título y los autores que ya tenía, que pueden haberse revisado a mano.
+                Metadatos m = ExtractorMetadatos.extraer(texto != null ? texto : LectorPdf.leer(pdf));
+                lineas = List.of(lineas.size() > 0 ? lineas.get(0) : m.titulo(),
+                        lineas.size() > 1 ? lineas.get(1) : String.join(SEPARADOR_AUTORES, m.autores()),
+                        String.valueOf(m.anio()));
+                Files.writeString(txtMetadatos, String.join("\n", lineas) + "\n", StandardCharsets.UTF_8);
             }
 
             String abstractTexto = Files.readString(txtAbstract, StandardCharsets.UTF_8).strip();
-            List<String> lineas = Files.readAllLines(txtMetadatos, StandardCharsets.UTF_8);
-            String titulo = lineas.isEmpty() ? base : lineas.get(0).strip();
-            List<String> autores = lineas.size() < 2 || lineas.get(1).isBlank() ? List.of()
+            String titulo = lineas.get(0).isBlank() ? base : lineas.get(0).strip();
+            List<String> autores = lineas.get(1).isBlank() ? List.of()
                     : Arrays.stream(lineas.get(1).split(SEPARADOR_AUTORES)).map(String::strip).toList();
-            articulos.add(new Articulo(numeroInicial(pdf), nombre, titulo, autores, abstractTexto));
+            int anio = lineas.get(2).strip().matches("\\d{4}") ? Integer.parseInt(lineas.get(2).strip()) : 0;
+            articulos.add(new Articulo(numeroInicial(pdf), nombre, titulo, autores, anio, abstractTexto));
         }
         return articulos;
     }

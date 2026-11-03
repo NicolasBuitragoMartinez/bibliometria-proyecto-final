@@ -131,12 +131,17 @@ input[type="checkbox"] { accent-color: var(--tinta); width: 15px; height: 15px; 
 .tabla .fuerte { font-weight: 600; }
 #tabla-corpus tbody tr.fila { cursor: pointer; transition: background-color 120ms ease; }
 #tabla-corpus tbody tr.fila:hover { background: #fafbfc; }
-#tabla-corpus .autores { color: var(--tinta-2); }
+#tabla-corpus .titulo { display: block; font-weight: 500; }
+#tabla-corpus .autores { display: block; margin-top: 3px; font-size: 14px; color: var(--tinta-2); }
+#tabla-corpus .detalle { margin-top: 6px; font-size: 14px; color: var(--tinta-2); }
+#tabla-corpus .detalle b { color: var(--tinta); font-weight: 600; }
+/* Año y palabras pesan lo mismo que el título: misma tinta y tamaño, alineados a la derecha. */
+#tabla-corpus .cifra { color: var(--tinta); font-size: 15px; padding-left: 20px; }
 .chevron { width: 14px; height: 14px; fill: none; stroke: var(--tinta-3); stroke-width: 1.8; transition: transform 200ms var(--ease-out); }
 tr[aria-expanded="true"] .chevron { transform: rotate(90deg); }
 .fila-abstract td { background: var(--superficie-2); color: var(--tinta-2); font-size: 14px; }
 .fila-abstract p { margin: 0; max-width: 95ch; }
-.solo-movil { display: none; }
+.solo-angosto { display: none !important; }
 
 .cifras { display: flex; flex-wrap: wrap; gap: 8px 28px; margin: 0; padding: 0; list-style: none; }
 .cifras li { display: flex; flex-direction: column; }
@@ -210,10 +215,15 @@ mark { background: var(--marca); color: var(--tinta); padding: 0 2px; border-rad
   main.contenedor { padding-top: 24px; }
   .tabla th, .tabla td { padding: 8px 10px; }
   .ocultar-movil { display: none; }
-  .solo-movil { display: block; margin-top: 2px; color: var(--tinta-3); font-size: 13px; }
   /* El dendrograma conserva un ancho legible y se desplaza dentro de su tarjeta. */
   .dendrograma { overflow-x: auto; }
   .dendrograma svg { min-width: 620px; }
+}
+
+/* En pantallas angostas el año y las palabras pasan a una línea bajo los autores. */
+@media (max-width: 560px) {
+  .ocultar-angosto { display: none !important; }
+  .solo-angosto { display: block !important; }
 }
 
 @media (prefers-reduced-motion: reduce) {

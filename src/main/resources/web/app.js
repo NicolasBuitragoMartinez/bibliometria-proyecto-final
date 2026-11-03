@@ -9,6 +9,7 @@ const escapar = (texto) =>
   String(texto).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const recortar = (texto, largo) => (texto.length > largo ? texto.slice(0, largo - 1) + "…" : texto);
 const esIA = (enfoque) => enfoque === "IA";
+const anioTexto = (articulo) => articulo.anio || "s. f.";
 const CHECK = '<svg class="check" viewBox="0 0 16 16" role="img" aria-label="coincide"><path d="m3.5 8.5 3 3 6-7"/></svg>';
 const CHEVRON = '<svg class="chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="m6 4 4 4-4 4"/></svg>';
 
@@ -66,14 +67,19 @@ async function cargarCorpus() {
   const datos = await api("/api/articulos");
   estado.articulos = datos.articulos;
   const palabras = datos.articulos.reduce((suma, a) => suma + a.palabras, 0);
-  $("#corpus-resumen").textContent =
-    `${datos.articulos.length} artículos publicados entre 2019 y 2024 · ${numero(palabras)} palabras en sus abstracts`;
+  const anios = datos.articulos.map((a) => a.anio).filter(Boolean);
+  $("#corpus-resumen").textContent = `${datos.articulos.length} artículos publicados entre ${Math.min(...anios)} y `
+    + `${Math.max(...anios)} · ${numero(palabras)} palabras en sus abstracts`;
   const cuerpo = $("#tabla-corpus tbody");
   cuerpo.innerHTML = datos.articulos
     .map((a) => `<tr class="fila" tabindex="0" aria-expanded="false" data-numero="${a.numero}">
-      <td class="num">${a.numero}</td><td>${escapar(a.titulo)}
-        <span class="solo-movil">${escapar(a.autoresCortos)} · ${a.palabras} palabras</span></td>
-      <td class="autores ocultar-movil">${escapar(a.autores.join(", "))}</td><td class="num ocultar-movil">${a.palabras}</td>
+      <td class="num">${a.numero}</td>
+      <td><span class="titulo">${escapar(a.titulo)}</span>
+        <span class="autores ocultar-angosto">${escapar(a.autores.join(", "))}</span>
+        <span class="autores solo-angosto">${escapar(a.autoresCortos)}</span>
+        <span class="detalle solo-angosto"><b>${anioTexto(a)}</b> · <b>${a.palabras}</b> palabras</span></td>
+      <td class="num cifra ocultar-angosto">${anioTexto(a)}</td>
+      <td class="num cifra ocultar-angosto">${a.palabras}</td>
       <td>${CHEVRON}</td></tr>`)
     .join("");
   cuerpo.querySelectorAll("tr.fila").forEach((fila) => {
@@ -173,7 +179,7 @@ function dibujarSelector() {
   const contenedor = $("#sim-selector");
   contenedor.innerHTML = '<legend class="sr">Artículos a comparar</legend>' + estado.articulos
     .map((a) => `<label class="opcion"><input type="checkbox" value="${a.numero}" ${estado.seleccion.has(a.numero) ? "checked" : ""}>
-      <span><b>${a.numero}</b>${escapar(a.autoresCortos)} · ${escapar(recortar(a.titulo, 64))}</span></label>`)
+      <span><b>${a.numero}</b>${escapar(a.autoresCortos)} (${anioTexto(a)}) · ${escapar(recortar(a.titulo, 64))}</span></label>`)
     .join("");
   contenedor.querySelectorAll("input").forEach((casilla) =>
     casilla.addEventListener("change", () => {
@@ -318,7 +324,7 @@ async function buscar() {
       </tbody></table></div></div>`;
     const ocurrencias = d.articulos.length ? `<div class="bloque">${d.articulos
       .map((a) => `<div class="ocurrencia"><h3>${a.numero}. ${escapar(a.titulo)}</h3>
-        <span class="meta">${escapar(a.autoresCortos)} · ${a.fragmentos.length} ${a.fragmentos.length === 1 ? "ocurrencia" : "ocurrencias"}</span>
+        <span class="meta">${escapar(a.autoresCortos)} (${anioTexto(a)}) · ${a.fragmentos.length} ${a.fragmentos.length === 1 ? "ocurrencia" : "ocurrencias"}</span>
         ${a.fragmentos.map((f) => `<p class="fragmento"><span class="pos">car. ${f.posicion}</span>${escapar(f.antes)}<mark>${escapar(f.coincidencia)}</mark>${escapar(f.despues)}</p>`).join("")}
       </div>`).join("")}</div>` : "";
     $("#bus-resultado").innerHTML = tabla + ocurrencias;

@@ -42,10 +42,13 @@ En VS Code: abrir la carpeta, esperar la importación de Maven y pulsar **Run** 
 
 - `corpus/pdfs/`: los 20 artículos entregados por el docente.
 - `corpus/abstracts/`: abstract extraído automáticamente de cada PDF (mismo extractor del seguimiento).
-- `corpus/metadatos/`: título (primera línea) y autores (segunda línea) extraídos de cada PDF. Se
-  combinan tres fuentes y se elige la más completa: metadatos XMP (`dc:creator`), diccionario Info del
-  PDF y la línea que sigue al título en la primera página; si el título de los metadatos no es válido
-  (por ejemplo `ET-04-2023-0117_proof`), se toman las líneas escritas con la letra más grande.
+- `corpus/metadatos/`: título (primera línea), autores (segunda línea) y año (tercera línea) extraídos
+  de cada PDF. Para los autores se combinan tres fuentes y se elige la más completa: metadatos XMP
+  (`dc:creator`), diccionario Info del PDF y la línea que sigue al título en la primera página; si el
+  título de los metadatos no es válido (por ejemplo `ET-04-2023-0117_proof`), se toman las líneas
+  escritas con la letra más grande. El año sale de la línea de cita de la revista en la primera página
+  (`3 (2022) 100101`, `(2024) 21:40`, `2024, 14, 636.`, `2024;59:e12663` o `Vol. 66 No. 6, 2024`) y,
+  si no aparece, del aviso de derechos de autor.
 - `corpus/embeddings/`: vectores de los dos modelos de IA (`glove.csv`, 100 dimensiones;
   `minilm.csv`, 384 dimensiones).
 

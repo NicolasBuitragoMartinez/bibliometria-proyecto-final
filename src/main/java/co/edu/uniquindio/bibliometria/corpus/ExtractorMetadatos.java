@@ -11,7 +11,7 @@ import co.edu.uniquindio.bibliometria.corpus.LectorPdf.Linea;
 import co.edu.uniquindio.bibliometria.corpus.LectorPdf.TextoPdf;
 
 /**
- * Extrae el título y los autores de un artículo. Cada editorial guarda estos datos de forma
+ * Extrae el título, los autores y el año de un artículo. Cada editorial guarda estos datos de forma
  * distinta, así que se combinan tres fuentes y se toma la más completa:
  * 1. Título: el del diccionario Info del PDF si parece un título real; si no (por ejemplo
  *    "ET-04-2023-0117_proof" en Emerald, o vacío en Wiley), las líneas de la primera página
@@ -19,10 +19,12 @@ import co.edu.uniquindio.bibliometria.corpus.LectorPdf.TextoPdf;
  * 2. Autores: la lista dc:creator de los metadatos XMP (Elsevier y Springer la traen completa),
  *    el campo Author del diccionario Info, o la línea que sigue al título en la primera página.
  *    Se elige la fuente que da más nombres válidos.
+ * 3. Año: el de la línea de cita de la revista en la primera página, que cada editorial escribe a su
+ *    manera; si no aparece, el del aviso de derechos de autor.
  */
 public final class ExtractorMetadatos {
 
-    public record Metadatos(String titulo, List<String> autores) {
+    public record Metadatos(String titulo, List<String> autores, int anio) {
     }
 
     private static final Pattern CREADOR_XMP = Pattern.compile(
@@ -35,6 +37,18 @@ public final class ExtractorMetadatos {
     /** Un nombre: de 2 a 5 palabras que empiezan en mayúscula (se admiten iniciales y guiones). */
     private static final Pattern NOMBRE = Pattern.compile(
             "\\p{Lu}[\\p{L}.'’-]*(?:\\s+(?:\\p{Lu}[\\p{L}.'’-]*|de|van|von|da|del)){1,4}");
+    /**
+     * Línea de cita de la revista, con el año del número: Elsevier y Springer "3 (2022) 100101" o
+     * "(2024) 21:40", MDPI "Educ. Sci. 2024, 14, 636.", Wiley "Eur J Educ. 2024;59:e12663" y Emerald
+     * "Vol. 66 No. 6, 2024".
+     */
+    private static final List<Pattern> CITA_REVISTA = List.of(
+            Pattern.compile("\\(((?:19|20)\\d{2})\\)\\s*(?:\\d{5,}|\\d+:\\d+)"),
+            Pattern.compile("\\b((?:19|20)\\d{2}),\\s*\\d+,\\s*\\d+\\."),
+            Pattern.compile("\\b((?:19|20)\\d{2});\\s*\\d+:"),
+            Pattern.compile("Vol\\.\\s*\\d+\\s+No\\.\\s*\\d+,\\s*((?:19|20)\\d{2})"));
+    /** Último recurso: el año del aviso de derechos de autor ("© 2022 The Authors", "© The Author(s) 2024"). */
+    private static final Pattern DERECHOS = Pattern.compile("©[^©\\n]{0,60}?\\b((?:19|20)\\d{2})\\b");
     private static final double PROPORCION_TITULO = 0.92;
     private static final int MAXIMO_LINEAS_TITULO = 5;
 
@@ -47,7 +61,29 @@ public final class ExtractorMetadatos {
                 autoresXmp(pdf.xmp()),
                 separarNombres(pdf.autorInfo()),
                 autoresDespuesDelTitulo(pdf.lineasPrimeraPagina(), titulo)));
-        return new Metadatos(titulo, autores);
+        StringBuilder primeraPagina = new StringBuilder();
+        for (Linea l : pdf.lineasPrimeraPagina()) {
+            primeraPagina.append(l.texto()).append('\n');
+        }
+        return new Metadatos(titulo, autores, anio(primeraPagina.toString(), pdf.primerasPaginas()));
+    }
+
+    /**
+     * Año de publicación: primero se busca la cita de la revista y, si no aparece, el aviso de derechos de
+     * autor, en cada texto en el orden dado (la primera página antes que las siguientes). 0 si no hay año.
+     */
+    static int anio(String... textos) {
+        for (List<Pattern> patrones : List.of(CITA_REVISTA, List.of(DERECHOS))) {
+            for (String texto : textos) {
+                for (Pattern patron : patrones) {
+                    Matcher m = patron.matcher(texto == null ? "" : texto);
+                    if (m.find()) {
+                        return Integer.parseInt(m.group(1));
+                    }
+                }
+            }
+        }
+        return 0;
     }
 
     static String extraerTitulo(TextoPdf pdf) {

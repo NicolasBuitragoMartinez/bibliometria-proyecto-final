@@ -3,10 +3,12 @@ package co.edu.uniquindio.bibliometria.modelo;
 import java.util.List;
 
 /**
- * Un artículo del corpus: su número (1 a 20, el del nombre del archivo), el título y los autores
- * extraídos del PDF y el texto del abstract, que es lo que procesan los algoritmos.
+ * Un artículo del corpus: su número (1 a 20, el del nombre del archivo), el título, los autores y el
+ * año extraídos del PDF (0 si no se encontró el año) y el texto del abstract, que es lo que procesan
+ * los algoritmos.
  */
-public record Articulo(int numero, String archivo, String titulo, List<String> autores, String abstractTexto) {
+public record Articulo(int numero, String archivo, String titulo, List<String> autores, int anio,
+        String abstractTexto) {
 
     /** "Laupichler et al.", "Zhang y Aslan" o "Lo": forma corta para tablas y etiquetas. */
     public String autoresCortos() {

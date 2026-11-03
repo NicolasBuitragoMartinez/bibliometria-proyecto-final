@@ -76,6 +76,7 @@ public final class Servidor {
             m.put("titulo", a.titulo());
             m.put("autores", a.autores());
             m.put("autoresCortos", a.autoresCortos());
+            m.put("anio", a.anio());
             m.put("palabras", a.abstractTexto().split("\\s+").length);
             m.put("abstract", a.abstractTexto());
             lista.add(m);
@@ -278,6 +279,7 @@ public final class Servidor {
             m.put("numero", articulo.numero());
             m.put("titulo", articulo.titulo());
             m.put("autoresCortos", articulo.autoresCortos());
+            m.put("anio", articulo.anio());
             m.put("fragmentos", fragmentos);
             articulos.add(m);
         }
