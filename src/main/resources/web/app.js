@@ -10,6 +10,10 @@ const escapar = (texto) =>
 const recortar = (texto, largo) => (texto.length > largo ? texto.slice(0, largo - 1) + "…" : texto);
 const esIA = (enfoque) => enfoque === "IA";
 const anioTexto = (articulo) => articulo.anio || "s. f.";
+const articuloPorNumero = (n) =>
+  estado.articulos.find((a) => a.numero === n) || { numero: n, titulo: "", autoresCortos: `Artículo ${n}`, anio: 0 };
+// Mismos colores que usa Dendrograma.java para los grupos del corte.
+const COLORES_GRUPO = ["#2060C0", "#D96028", "#289870", "#8E44AD", "#C0392B", "#B7950B", "#16A085", "#7F8C8D"];
 const CHECK = '<svg class="check" viewBox="0 0 16 16" role="img" aria-label="coincide"><path d="m3.5 8.5 3 3 6-7"/></svg>';
 const CHEVRON = '<svg class="chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="m6 4 4 4-4 4"/></svg>';
 
@@ -212,7 +216,11 @@ async function comparar() {
   try {
     const d = await api("/api/similitud?articulos=" + numeros.join(","));
     mostrarEstado("#sim-estado", "");
-    let html = "";
+    // Cruce con los metadatos: qué artículo es cada número de las matrices.
+    let html = `<details class="bloque comparados" ${numeros.length <= 4 ? "open" : ""}>
+      <summary>Artículos comparados (${numeros.length})</summary>
+      <ul>${numeros.map((n) => articuloPorNumero(n)).map((a) => `<li><b>${a.numero}</b><span>${escapar(a.autoresCortos)}
+        (${anioTexto(a)}) · ${escapar(a.titulo)}</span></li>`).join("")}</ul></details>`;
     if (numeros.length === 2) {
       html += `<div class="bloque">
         <div class="bloque-cabeza"><h3>Artículo ${numeros[0]} frente a artículo ${numeros[1]}</h3>
@@ -288,7 +296,7 @@ async function cargarAgrupamiento(representacion) {
     const dendrogramas = d.resultados
       .map((r) => `<div class="bloque"><div class="bloque-cabeza"><h3>${escapar(r.criterio)}</h3>
         <span class="meta">CCC ${numero(r.ccc, 3)} · corte en k = ${r.mejorK} · ${numero(r.ms, 2)} ms</span></div>
-        <div class="dendrograma">${r.svg}</div></div>`)
+        <div class="dendrograma">${r.svg}</div>${gruposHtml(r)}</div>`)
       .join("");
     $("#agr-resultado").innerHTML = tabla + dendrogramas;
   } catch (e) {
@@ -297,8 +305,17 @@ async function cargarAgrupamiento(representacion) {
   }
 }
 
+/** Los artículos de cada grupo al cortar el dendrograma en el mejor k, con su título, autores y año. */
+function gruposHtml(r) {
+  return `<details class="grupos"><summary>Artículos de cada grupo con k = ${r.mejorK}</summary>
+    ${r.grupos.map((g, i) => `<div class="grupo"><h4><i style="background:${COLORES_GRUPO[i % COLORES_GRUPO.length]}"></i>
+      Grupo ${i + 1} · ${g.length} ${g.length === 1 ? "artículo" : "artículos"}</h4>
+      <ul>${g.map((n) => articuloPorNumero(n)).map((a) => `<li><b>A${a.numero}</b> ${escapar(a.autoresCortos)}
+        (${anioTexto(a)}) · ${escapar(a.titulo)}</li>`).join("")}</ul></div>`).join("")}</details>`;
+}
+
 // ---------- Búsqueda ----------
-async function buscar() {
+async function buscar(caso = {}) {
   const patron = $("#bus-patron").value;
   if (!patron.trim()) {
     mostrarEstado("#bus-estado", "Escriba un patrón para buscar.", "error");
@@ -325,9 +342,19 @@ async function buscar() {
     const ocurrencias = d.articulos.length ? `<div class="bloque">${d.articulos
       .map((a) => `<div class="ocurrencia"><h3>${a.numero}. ${escapar(a.titulo)}</h3>
         <span class="meta">${escapar(a.autoresCortos)} (${anioTexto(a)}) · ${a.fragmentos.length} ${a.fragmentos.length === 1 ? "ocurrencia" : "ocurrencias"}</span>
-        ${a.fragmentos.map((f) => `<p class="fragmento"><span class="pos">car. ${f.posicion}</span>${escapar(f.antes)}<mark>${escapar(f.coincidencia)}</mark>${escapar(f.despues)}</p>`).join("")}
+        ${a.fragmentos.map((f) => `<p class="fragmento"><span class="pos">car. ${f.posicion}</span>${escapar(f.antes)}<mark>${escapar(f.coincidencia)}</mark>${escapar(f.despues)}
+          <button type="button" class="enlace-paso" data-articulo="${a.numero}" data-posicion="${f.posicion}">Paso a paso</button></p>`).join("")}
       </div>`).join("")}</div>` : "";
-    $("#bus-resultado").innerHTML = tabla + ocurrencias;
+    const paso = total ? '<div class="bloque" id="pasos"><span class="esqueleto"></span></div>' : "";
+    $("#bus-resultado").innerHTML = tabla + paso + ocurrencias;
+    $("#bus-resultado").querySelectorAll(".enlace-paso").forEach((b) => b.addEventListener("click", async () => {
+      await cargarPasos(Number(b.dataset.articulo), Number(b.dataset.posicion));
+      $("#pasos").scrollIntoView({ behavior: "smooth", block: "start" });
+    }));
+    if (total) {
+      const primero = d.articulos[0];
+      cargarPasos(caso.articulo || primero.numero, caso.posicion ?? primero.fragmentos[0].posicion, caso.irAOcurrencia);
+    }
   } catch (e) {
     mostrarEstado("#bus-estado", e.message, "error");
   }
@@ -338,7 +365,168 @@ $("#bus-formulario").addEventListener("submit", (evento) => {
   buscar();
 });
 
+// ---------- Búsqueda: paso a paso ----------
+// Cada alineación del patrón sobre una oración: qué se compara, dónde falla y cuánto se desplaza.
+const pasos = { datos: null, algoritmo: 0, paso: 0, articulo: 0, posicion: 0, q: "pequeno" };
+const FLECHA_IZQ = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m10 3.5-4.5 4.5 4.5 4.5"/></svg>';
+const FLECHA_DER = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3.5 4.5 4.5-4.5 4.5"/></svg>';
+
+async function cargarPasos(articulo, posicion, irAOcurrencia = false) {
+  Object.assign(pasos, { articulo, posicion });
+  try {
+    const parametros = new URLSearchParams({ patron: $("#bus-patron").value, articulo, posicion, q: pasos.q });
+    pasos.datos = await api("/api/pasos?" + parametros);
+    pasos.paso = 0;
+    dibujarPasos();
+    if (irAOcurrencia) $("#paso-evento").click();
+  } catch (e) {
+    $("#pasos").innerHTML = `<div class="bloque-cabeza"><h3>Paso a paso</h3></div><p class="error">${escapar(e.message)}</p>`;
+  }
+}
+
+const celdas = (texto) => Array.from({ length: texto.length }, (_, i) => texto[i])
+  .map((c) => `<span class="celda">${c === " " ? "·" : escapar(c)}</span>`).join("");
+
+function tablaAuxiliar(r, patron) {
+  const m = patron.length;
+  const fila = (titulo, valores, clave) => `<tr><th>${titulo}</th>${valores
+    .map((v, i) => `<td data-${clave}="${i}">${escapar(v)}</td>`).join("")}</tr>`;
+  if (r.nombre === "Knuth-Morris-Pratt") {
+    return `<table class="aux"><caption>Función de prefijos</caption>${fila("q", [...Array(m).keys()], "col")}
+      ${fila("P[q]", patron.split(""), "col")}${fila("π[q]", r.tablas.prefijos, "col")}</table>`;
+  }
+  if (r.nombre === "Boyer-Moore") {
+    const ultima = r.tablas.ultima;
+    return `<table class="aux"><caption>Carácter malo</caption>
+        ${fila("c", ultima.map((u) => u[0]).concat("otro"), "car")}${fila("última(c)", ultima.map((u) => u[1]).concat(-1), "car")}</table>
+      <table class="aux"><caption>Sufijo bueno</caption>${fila("j", [...Array(m + 1).keys()], "j")}
+        ${fila("desplazamiento[j]", r.tablas.sufijoBueno, "j")}</table>`;
+  }
+  const t = r.tablas;
+  return `<dl class="cifras-aux"><div><dt>Base d</dt><dd>${t.base}</dd></div><div><dt>Módulo q</dt><dd>${numero(t.primo)}</dd></div>
+    <div><dt>d<sup>m−1</sup> mod q</dt><dd>${numero(t.pesoMayor)}</dd></div><div><dt>h(P)</dt><dd>${numero(t.hashPatron)}</dd></div></dl>`;
+}
+
+function dibujarPasos() {
+  const d = pasos.datos;
+  const r = d.algoritmos[pasos.algoritmo];
+  const a = d.articulo;
+  const rk = r.nombre === "Rabin-Karp";
+  $("#pasos").innerHTML = `
+    <div class="bloque-cabeza"><h3>Paso a paso</h3>
+      <span class="meta">Artículo ${a.numero} · ${escapar(a.autoresCortos)} (${anioTexto(a)}) · oración de ${d.texto.length}
+        caracteres, sin distinguir mayúsculas</span></div>
+    <div class="herramientas">
+      <div class="segmentado" role="radiogroup" aria-label="Algoritmo">${d.algoritmos.map((x, i) =>
+        `<button type="button" role="radio" data-i="${i}" aria-checked="${i === pasos.algoritmo}">${escapar(x.nombre)}</button>`).join("")}</div>
+      ${rk ? `<div class="segmentado" role="radiogroup" aria-label="Módulo q">
+        <button type="button" role="radio" data-q="pequeno" aria-checked="${pasos.q === "pequeno"}">q = 13</button>
+        <button type="button" role="radio" data-q="grande" aria-checked="${pasos.q === "grande"}">q = 1.000.000.007</button></div>` : ""}
+    </div>
+    <div class="auxiliar">${tablaAuxiliar(r, d.patron)}</div>
+    <div class="pista-texto" tabindex="0" aria-label="Patrón alineado sobre la oración; use las flechas para avanzar">
+      <div class="regla">${Array.from({ length: d.texto.length }, (_, i) => `<span class="celda">${i % 10 === 0 ? i : ""}</span>`).join("")}</div>
+      <div class="fila-texto">${celdas(d.texto)}</div>
+      <div class="fila-patron">${celdas(d.patron)}</div>
+    </div>
+    <ul class="leyenda-paso"><li><i class="igual"></i>Coincide</li><li><i class="distinto"></i>No coincide</li>
+      ${pasos.algoritmo === 0 ? '<li><i class="conocido"></i>Ya se sabe que coincide (no se compara)</li>' : ""}
+      <li><i></i>Sin comparar</li></ul>
+    <div class="paso-control">
+      <button type="button" class="boton secundario icono" id="paso-anterior" aria-label="Alineación anterior">${FLECHA_IZQ}</button>
+      <input type="range" id="paso-rango" min="0" max="${r.alineaciones.length - 1}" value="0" aria-label="Alineación">
+      <button type="button" class="boton secundario icono" id="paso-siguiente" aria-label="Alineación siguiente">${FLECHA_DER}</button>
+      <button type="button" class="boton fantasma" id="paso-evento">${rk ? "Próximo hash igual" : "Próxima ocurrencia"}</button>
+      <span class="meta" id="paso-numero"></span>
+    </div>
+    <p class="explicacion" id="paso-explicacion" aria-live="polite"></p>
+    <p class="meta">En esta oración: ${numero(r.alineaciones.length)} alineaciones · ${numero(r.comparaciones)} comparaciones de
+      caracteres${rk ? ` · ${r.colisiones} ${r.colisiones === 1 ? "colisión" : "colisiones"}` : ""} · ocurrencia en la posición
+      ${r.posiciones.join(", ") || "—"}.</p>`;
+
+  const contenedor = $("#pasos");
+  contenedor.querySelectorAll("[data-i]").forEach((b) => b.addEventListener("click", () => {
+    pasos.algoritmo = Number(b.dataset.i);
+    pasos.paso = 0;
+    dibujarPasos();
+  }));
+  contenedor.querySelectorAll("[data-q]").forEach((b) => b.addEventListener("click", () => {
+    if (b.dataset.q === pasos.q) return;
+    pasos.q = b.dataset.q;
+    cargarPasos(pasos.articulo, pasos.posicion);
+  }));
+  const ir = (paso) => {
+    pasos.paso = Math.max(0, Math.min(r.alineaciones.length - 1, paso));
+    actualizarPaso();
+  };
+  $("#paso-anterior").addEventListener("click", () => ir(pasos.paso - 1));
+  $("#paso-siguiente").addEventListener("click", () => ir(pasos.paso + 1));
+  $("#paso-rango").addEventListener("input", (e) => ir(Number(e.target.value)));
+  $("#paso-evento").addEventListener("click", () => {
+    const siguiente = r.alineaciones.findIndex((x, k) => k > pasos.paso && (x.ocurrencia || (rk && x.comparadas.length)));
+    if (siguiente >= 0) ir(siguiente);
+  });
+  contenedor.querySelector(".pista-texto").addEventListener("keydown", (e) => {
+    if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+      e.preventDefault();
+      ir(pasos.paso + (e.key === "ArrowRight" ? 1 : -1));
+    }
+  });
+  actualizarPaso();
+}
+
+function actualizarPaso() {
+  const d = pasos.datos;
+  const r = d.algoritmos[pasos.algoritmo];
+  const a = r.alineaciones[pasos.paso];
+  const m = d.patron.length;
+  const textoCeldas = [...$("#pasos .fila-texto").children];
+  const comparadas = new Set(a.comparadas);
+  textoCeldas.forEach((c, i) => { c.className = "celda" + (i >= a.s && i < a.s + m ? " ventana" : ""); });
+  [...$("#pasos .fila-patron").children].forEach((c, j) => {
+    const clase = j < a.conocidos ? "conocido" : j === a.falla ? "distinto" : comparadas.has(j) ? "igual" : "";
+    c.className = "celda" + (clase ? " " + clase : "");
+    if (clase && textoCeldas[a.s + j]) textoCeldas[a.s + j].classList.add(clase);
+  });
+  $("#pasos .fila-patron").style.transform = `translateX(calc(${a.s} * var(--celda)))`;
+
+  const pista = $("#pasos .pista-texto");
+  const ancho = textoCeldas[0].getBoundingClientRect().width;
+  const izquierda = a.s * ancho;
+  if (izquierda < pista.scrollLeft || izquierda + m * ancho > pista.scrollLeft + pista.clientWidth - 24) {
+    const destino = Math.max(0, izquierda - pista.clientWidth / 3);
+    // Saltos largos (próxima ocurrencia, barra) sin animación; pasos cortos con desplazamiento suave.
+    pista.scrollTo({ left: destino, behavior: Math.abs(destino - pista.scrollLeft) > pista.clientWidth ? "auto" : "smooth" });
+  }
+
+  // Celdas de las tablas auxiliares que usa este paso.
+  $("#pasos").querySelectorAll(".aux td.activa").forEach((c) => c.classList.remove("activa"));
+  const marcar = (atributo, valor) =>
+    $("#pasos").querySelectorAll(`.aux td[data-${atributo}="${valor}"]`).forEach((c) => c.classList.add("activa"));
+  if (r.nombre === "Knuth-Morris-Pratt") {
+    if (a.ocurrencia) marcar("col", m - 1);
+    else if (a.falla > 0) marcar("col", a.falla - 1);
+  } else if (r.nombre === "Boyer-Moore") {
+    marcar("j", a.ocurrencia ? 0 : a.falla + 1);
+    if (!a.ocurrencia) {
+      const c = d.texto.toLowerCase()[a.s + a.falla];
+      const indice = r.tablas.ultima.findIndex((u) => u[0] === c);
+      marcar("car", indice >= 0 ? indice : r.tablas.ultima.length);
+    }
+  }
+
+  $("#paso-rango").value = pasos.paso;
+  $("#paso-numero").textContent = `Alineación ${pasos.paso + 1} de ${r.alineaciones.length} · s = ${a.s}`
+    + (r.nombre === "Rabin-Karp" ? ` · h = ${numero(a.hash)}` : "");
+  const explicacion = $("#paso-explicacion");
+  explicacion.textContent = a.explicacion;
+  explicacion.className = "explicacion" + (a.ocurrencia ? " ok" : a.falla >= 0 && r.nombre === "Rabin-Karp" ? " aviso" : "");
+  $("#paso-anterior").disabled = pasos.paso === 0;
+  $("#paso-siguiente").disabled = pasos.paso === r.alineaciones.length - 1;
+}
+
 // ---------- Enlaces directos: #ranking · #similitud=11,16 · #agrupamiento=minilm · #busqueda=learning ----------
+// #pasos=analysis,18,426 abre el paso a paso del caso de estudio (patrón, artículo, posición) en la ocurrencia.
 function abrirDesdeEnlace() {
   const [panel, valor] = decodeURIComponent(location.hash.slice(1)).split("=");
   if (!panel) {
@@ -351,6 +539,13 @@ function abrirDesdeEnlace() {
     comparar();
   }
   if (panel === "agrupamiento") cargarAgrupamiento(valor);
+  if (panel === "pasos" && valor) {
+    const [patron, articulo, posicion] = valor.split(",");
+    $("#bus-patron").value = patron;
+    buscar({ articulo: Number(articulo), posicion: Number(posicion), irAOcurrencia: true });
+    abrirPanel("busqueda", { actualizarEnlace: false });
+    return;
+  }
   if (panel === "busqueda" && valor) {
     $("#bus-patron").value = valor;
     buscar();

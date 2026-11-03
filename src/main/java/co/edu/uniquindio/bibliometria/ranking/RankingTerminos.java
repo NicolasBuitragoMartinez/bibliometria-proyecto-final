@@ -24,7 +24,7 @@ import co.edu.uniquindio.bibliometria.ranking.reporte.Reporte;
 import co.edu.uniquindio.bibliometria.texto.Preprocesador;
 
 /**
- * Ranking de términos del corpus mediante ordenamientos no comparativos (capítulo 8 del documento
+ * Ranking de términos del corpus mediante ordenamientos no comparativos (capítulo 7 del documento
  * técnico, con las correcciones pedidas por el docente al seguimiento). Los resultados se guardan en
  * resultados/ranking/.
  *

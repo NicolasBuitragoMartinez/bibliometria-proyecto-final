@@ -8,7 +8,8 @@ Nicolas Buitrago Martinez · Juan David Martinez Valencia
 unos 50 segundos mientras el servidor arranca).
 
 Aplicación web que procesa los abstracts de los 20 artículos del corpus (inteligencia artificial en
-la educación) y ofrece los tres requerimientos funcionales del enunciado:
+la educación) y ofrece los tres requerimientos funcionales del enunciado, además del ranking de
+términos del seguimiento con las correcciones del docente:
 
 | Requerimiento | Algoritmos (implementados desde cero) | Paquete |
 |---|---|---|
@@ -16,11 +17,30 @@ la educación) y ofrece los tres requerimientos funcionales del enunciado:
 | 2. Agrupamiento jerárquico | Single, complete y average linkage (Lance-Williams), dendrogramas SVG, correlación cofenética y silueta | `agrupamiento` |
 | 3. Búsqueda de patrones | Knuth-Morris-Pratt, Boyer-Moore (carácter malo + sufijo bueno), Rabin-Karp (hash rodante) | `busqueda` |
 | 4. Despliegue | Servidor HTTP del JDK + interfaz web; imagen Docker | `web`, `Dockerfile` |
+| Ranking de términos | Counting Sort, Radix Sort (LSD, colas enlazadas) y Bucket Sort; medición en JVM nuevas y experimento de memoria | `ranking` |
 
 Ningún algoritmo usa funciones de alto nivel que lo resuelvan: la búsqueda no usa `indexOf`,
 `contains` ni expresiones regulares; la similitud y el agrupamiento se calculan con arreglos, listas
 y tablas hash. Los modelos de IA solo se usan para **vectorizar** los abstracts (script de Python);
 la similitud del coseno y la distancia euclidiana entre los vectores las calcula la aplicación Java.
+
+## Interfaz y API
+
+La interfaz tiene cinco pestañas: Corpus (título, autores, año y abstract de cada artículo), Ranking
+de términos, Similitud, Agrupamiento (con los artículos de cada grupo) y Búsqueda de patrones, que
+incluye un **paso a paso** de KMP, Boyer-Moore y Rabin-Karp sobre la oración de cada ocurrencia.
+
+| Consulta | Respuesta |
+|---|---|
+| `GET /api/articulos` | Número, título, autores, año, palabras y abstract |
+| `GET /api/ranking` | Cifras del corpus, top 15 de los tres ordenamientos y tiempos en el servidor |
+| `GET /api/similitud?articulos=11,16` | Matriz y tiempo de los seis algoritmos |
+| `GET /api/agrupamiento?representacion=tfidf` | Fusiones, CCC, silueta, grupos del mejor corte y dendrogramas |
+| `GET /api/busqueda?patron=learning` | Ocurrencias y estadísticas de los tres algoritmos |
+| `GET /api/pasos?patron=analysis&articulo=18&posicion=426&q=pequeno` | Cada alineación de los tres algoritmos |
+
+Enlaces directos: `#similitud=11,16`, `#agrupamiento=minilm`, `#busqueda=analysis`,
+`#pasos=analysis,18,426` (caso de estudio paso a paso) y `#ranking`.
 
 ## Requisitos
 
@@ -34,7 +54,13 @@ mvn package
 java -jar target/bibliometria.jar                 # servidor en http://localhost:8080
 java -jar target/bibliometria.jar experimentos    # CSV de tiempos y métricas en resultados/
 java -jar target/bibliometria.jar trazas          # demostraciones paso a paso en resultados/trazas/
+java -cp target/bibliometria.jar co.edu.uniquindio.bibliometria.ranking.RankingTerminos corpus --corridas 30 --escalabilidad --memoria
+python verificacion/verificar_conteo.py           # verificación independiente del ranking
+python docs/generar_figuras_ranking.py            # figuras del ranking a partir de resultados/ranking/
 ```
+
+La medición completa del ranking tarda varios minutos: cada una de las 30 corridas se hace en una JVM
+nueva. `MedicionCompleta` es un atajo para lanzarla desde el IDE.
 
 En VS Code: abrir la carpeta, esperar la importación de Maven y pulsar **Run** sobre `App.main`.
 
@@ -88,10 +114,21 @@ src/main/java/co/edu/uniquindio/bibliometria/
 ├── texto/                Preprocesamiento y representaciones (texto normalizado, tokens, TF-IDF)
 ├── similitud/            Requerimiento 1
 ├── agrupamiento/         Requerimiento 2
-├── busqueda/             Requerimiento 3
+├── busqueda/             Requerimiento 3 y su paso a paso (PasoAPaso)
+├── ranking/              Ranking de términos: ordenamientos, medición y reporte
 ├── web/                  Servidor HTTP y JSON
 └── experimentos/         Mediciones y trazas del documento técnico
 src/main/resources/web/   Interfaz (HTML, CSS y JavaScript sin frameworks)
 src/test/java/            Pruebas JUnit (mvn test)
 ia/                       Generación de embeddings (Python)
+verificacion/             Verificación independiente del conteo y del ranking (Python)
+resultados/               CSV de las mediciones y trazas que cita el documento técnico
+docs/                     Documento técnico, declaración de uso de IA y scripts de las figuras
 ```
+
+## Documentos
+
+- [Documento técnico](docs/Proyecto_Final_Analisis_de_Algoritmos.pdf): arquitectura, casos de estudio
+  paso a paso y análisis crítico de cada requerimiento y del ranking de términos.
+- [Declaración de uso de IA](docs/Declaracion_Uso_IA_Proyecto_Final.pdf): herramienta, usos, prompts y
+  forma de validación.

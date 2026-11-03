@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.function.Function;
@@ -17,12 +18,15 @@ import java.util.function.Function;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 
+import co.edu.uniquindio.bibliometria.agrupamiento.AgrupamientoJerarquico;
 import co.edu.uniquindio.bibliometria.agrupamiento.AgrupamientoJerarquico.Fusion;
 import co.edu.uniquindio.bibliometria.agrupamiento.AnalisisAgrupamiento;
 import co.edu.uniquindio.bibliometria.busqueda.AlgoritmoBusqueda.Resultado;
 import co.edu.uniquindio.bibliometria.busqueda.BusquedaCorpus;
 import co.edu.uniquindio.bibliometria.busqueda.BusquedaCorpus.EnArticulo;
 import co.edu.uniquindio.bibliometria.busqueda.BusquedaCorpus.PorAlgoritmo;
+import co.edu.uniquindio.bibliometria.busqueda.PasoAPaso;
+import co.edu.uniquindio.bibliometria.busqueda.RabinKarp;
 import co.edu.uniquindio.bibliometria.modelo.Articulo;
 import co.edu.uniquindio.bibliometria.ranking.ContadorFrecuencias;
 import co.edu.uniquindio.bibliometria.ranking.RankingTerminos;
@@ -42,6 +46,8 @@ import co.edu.uniquindio.bibliometria.texto.CorpusProcesado;
  *   GET /api/similitud?articulos=1,5,9                   matrices de similitud de los seis algoritmos
  *   GET /api/agrupamiento?representacion=tfidf           dendrogramas y métricas de los tres criterios
  *   GET /api/busqueda?patron=learning&mayusculas=no      ocurrencias con KMP, Boyer-Moore y Rabin-Karp
+ *   GET /api/pasos?patron=analysis&articulo=18&posicion=426&q=13
+ *                                                        paso a paso de los tres algoritmos en una oración
  */
 public final class Servidor {
 
@@ -62,6 +68,7 @@ public final class Servidor {
         servidor.createContext("/api/similitud", ex -> responder(ex, this::similitud));
         servidor.createContext("/api/agrupamiento", ex -> responder(ex, this::agrupamiento));
         servidor.createContext("/api/busqueda", ex -> responder(ex, this::busqueda));
+        servidor.createContext("/api/pasos", ex -> responder(ex, this::pasos));
         servidor.createContext("/", this::recursoEstatico);
         servidor.setExecutor(Executors.newFixedThreadPool(4));
         servidor.start();
@@ -87,7 +94,7 @@ public final class Servidor {
     }
 
     /**
-     * Ranking de términos (capítulo 8 del documento): lista de frecuencias, top 15 de los tres
+     * Ranking de términos (capítulo 7 del documento): lista de frecuencias, top 15 de los tres
      * ordenamientos no comparativos, verificación de que coinciden y tiempos medidos en este servidor.
      * Se calcula una sola vez, en la primera consulta.
      */
@@ -215,6 +222,7 @@ public final class Servidor {
                 fusiones.add(Map.of("a", f.grupoA(), "b", f.grupoB(), "distancia", f.distancia(), "tamano", f.tamano()));
             }
             m.put("fusiones", fusiones);
+            m.put("grupos", grupos(r.fusiones(), r.mejorK()));
             m.put("svg", r.svg());
             resultados.add(m);
             if (r.correlacionCofenetica() > mejorCcc) {
@@ -228,6 +236,83 @@ public final class Servidor {
         respuesta.put("resultados", resultados);
         respuesta.put("mejorCriterio", mejor);
         return respuesta;
+    }
+
+    /**
+     * Grupos que resultan de cortar el dendrograma en k grupos, con el número de cada artículo, en el
+     * orden de la etiqueta que les da el corte (el mismo que usa el dendrograma para los colores).
+     */
+    private List<Object> grupos(List<Fusion> fusiones, int k) {
+        int[] etiquetas = AgrupamientoJerarquico.cortar(corpus.tamano(), fusiones, k);
+        List<List<Integer>> grupos = new ArrayList<>();
+        for (int g = 0; g < k; g++) {
+            grupos.add(new ArrayList<>());
+        }
+        for (int i = 0; i < etiquetas.length; i++) {
+            grupos.get(etiquetas[i]).add(corpus.articulos().get(i).numero());
+        }
+        return new ArrayList<>(grupos);
+    }
+
+    /**
+     * Paso a paso de los tres algoritmos sobre la oración del abstract que contiene la posición dada
+     * (una de las ocurrencias de la búsqueda). Con q = 13 el hash de Rabin-Karp produce colisiones.
+     */
+    private Map<String, Object> pasos(Map<String, String> parametros) {
+        String patron = parametros.getOrDefault("patron", "");
+        if (patron.isEmpty() || patron.length() > PasoAPaso.MAXIMO_PATRON) {
+            throw new IllegalArgumentException("Para el paso a paso el patrón debe tener de 1 a "
+                    + PasoAPaso.MAXIMO_PATRON + " caracteres");
+        }
+        int numero = entero(parametros, "articulo", 1);
+        Articulo articulo = corpus.articulos().get(corpus.indice(numero));
+        String abstractTexto = articulo.abstractTexto();
+        int posicion = Math.max(0, Math.min(entero(parametros, "posicion", 0), abstractTexto.length()));
+        long primo = "grande".equals(parametros.get("q")) ? RabinKarp.PRIMO : 13;
+        int[] rango = PasoAPaso.oracion(abstractTexto, posicion, patron.length());
+        String texto = abstractTexto.substring(rango[0], rango[1]);
+
+        List<Object> recorridos = new ArrayList<>();
+        for (PasoAPaso.Recorrido r : PasoAPaso.recorrer(texto, patron, primo)) {
+            List<Object> alineaciones = new ArrayList<>();
+            for (PasoAPaso.Alineacion a : r.alineaciones()) {
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("s", a.s());
+                m.put("conocidos", a.conocidos());
+                m.put("comparadas", a.comparadas());
+                m.put("falla", a.falla());
+                m.put("ocurrencia", a.ocurrencia());
+                m.put("desplazamiento", a.desplazamiento());
+                m.put("hash", a.hash());
+                m.put("explicacion", a.explicacion());
+                alineaciones.add(m);
+            }
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("nombre", r.algoritmo());
+            m.put("tablas", r.tablas());
+            m.put("alineaciones", alineaciones);
+            m.put("posiciones", r.posiciones());
+            m.put("comparaciones", r.comparaciones());
+            m.put("colisiones", r.colisiones());
+            recorridos.add(m);
+        }
+        Map<String, Object> respuesta = new LinkedHashMap<>();
+        respuesta.put("articulo", Map.of("numero", articulo.numero(), "titulo", articulo.titulo(),
+                "autoresCortos", articulo.autoresCortos(), "anio", articulo.anio()));
+        respuesta.put("desde", rango[0]);
+        respuesta.put("texto", texto);
+        respuesta.put("patron", patron.toLowerCase(Locale.ROOT));
+        respuesta.put("q", primo);
+        respuesta.put("algoritmos", recorridos);
+        return respuesta;
+    }
+
+    private static int entero(Map<String, String> parametros, String nombre, int porDefecto) {
+        try {
+            return Integer.parseInt(parametros.getOrDefault(nombre, String.valueOf(porDefecto)).strip());
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("El parámetro " + nombre + " debe ser un número entero");
+        }
     }
 
     private Map<String, Object> busqueda(Map<String, String> parametros) {
