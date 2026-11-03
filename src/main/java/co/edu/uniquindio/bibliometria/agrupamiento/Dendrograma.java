@@ -53,7 +53,7 @@ public final class Dendrograma {
         double origen = ANCHO_ETIQUETAS + MARGEN;
         StringBuilder svg = new StringBuilder();
         svg.append(String.format(Locale.ROOT,
-                "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 %d %d\" font-family=\"Georgia, serif\""
+                "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 %d %d\" font-family=\"IBM Plex Sans, Segoe UI, sans-serif\""
                         + " font-size=\"12\" role=\"img\">", ancho, alto));
 
         for (int p = 0; p < fusiones.size(); p++) {

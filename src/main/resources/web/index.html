@@ -3,82 +3,119 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Bibliometría y algoritmos</title>
+  <title>Bibliometría · Análisis de algoritmos</title>
+  <meta name="description" content="Similitud textual, agrupamiento jerárquico, búsqueda de patrones y ranking de términos sobre 20 artículos de IA en la educación.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 6h6M4 12h6M4 18h10M10 6v6M10 9h5M14 18v-9h0M15 9v9' fill='none' stroke='%232060c0' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="estilos.css">
 </head>
 <body>
-  <header class="cabecera">
-    <div class="contenedor">
-      <p class="antetitulo">Universidad del Quindío · Análisis de Algoritmos 2026-2</p>
-      <h1>Análisis de algoritmos en el contexto de la bibliometría</h1>
-      <p class="subtitulo">Corpus de 20 artículos sobre inteligencia artificial en la educación: similitud textual,
-        agrupamiento jerárquico y búsqueda de patrones sobre sus abstracts.</p>
-      <nav class="pestanas" role="tablist">
-        <button role="tab" class="pestana activa" data-panel="corpus">Corpus</button>
-        <button role="tab" class="pestana" data-panel="similitud">1 · Similitud</button>
-        <button role="tab" class="pestana" data-panel="agrupamiento">2 · Agrupamiento</button>
-        <button role="tab" class="pestana" data-panel="busqueda">3 · Búsqueda de patrones</button>
-      </nav>
+  <header class="barra">
+    <div class="contenedor barra-fila">
+      <a class="marca" href="#corpus" aria-label="Inicio: corpus">
+        <svg class="marca-icono" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M3 5h7M3 11h7M3 19h11M10 5v6M10 8h5M14 19V8M15 8v0" />
+        </svg>
+        <span class="marca-nombre">Bibliometría</span>
+      </a>
+      <p class="alcance">Análisis de algoritmos sobre 20 artículos de IA en la educación</p>
+      <a class="enlace-externo" href="https://github.com/NicolasBuitragoMartinez/bibliometria-proyecto-final"
+         target="_blank" rel="noopener">Código
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3h7v7M13 3 6 10" /></svg>
+      </a>
     </div>
+    <nav class="contenedor pestanas" role="tablist" aria-label="Secciones">
+      <button role="tab" class="pestana" data-panel="corpus" aria-selected="true">Corpus</button>
+      <button role="tab" class="pestana" data-panel="ranking" aria-selected="false">Ranking de términos</button>
+      <button role="tab" class="pestana" data-panel="similitud" aria-selected="false">Similitud</button>
+      <button role="tab" class="pestana" data-panel="agrupamiento" aria-selected="false">Agrupamiento</button>
+      <button role="tab" class="pestana" data-panel="busqueda" aria-selected="false">Búsqueda de patrones</button>
+      <span class="indicador" aria-hidden="true"></span>
+    </nav>
   </header>
 
   <main class="contenedor">
-    <section id="corpus" class="panel activo" role="tabpanel">
-      <h2>Corpus</h2>
-      <p class="ayuda">Título y autores extraídos automáticamente de cada PDF; el abstract es el texto que procesan
-        los algoritmos. Haga clic en una fila para ver el abstract.</p>
-      <div class="tabla-desplazable">
+    <section id="corpus" class="panel activo" role="tabpanel" aria-labelledby="t-corpus">
+      <div class="encabezado">
+        <h1 id="t-corpus">Corpus</h1>
+        <p class="resumen" id="corpus-resumen">Cargando el corpus…</p>
+      </div>
+      <p class="guia">Título y autores extraídos automáticamente de cada PDF. Abra una fila para leer el abstract,
+        que es el texto que procesan todos los algoritmos.</p>
+      <div class="marco">
         <table class="tabla" id="tabla-corpus">
-          <thead><tr><th>N.°</th><th>Título</th><th>Autores</th><th class="num">Palabras</th></tr></thead>
-          <tbody></tbody>
+          <thead><tr><th class="num">N.°</th><th>Título</th><th class="ocultar-movil">Autores</th><th class="num ocultar-movil">Palabras</th><th></th></tr></thead>
+          <tbody><tr class="cargando"><td colspan="5"><span class="esqueleto"></span></td></tr></tbody>
         </table>
       </div>
     </section>
 
-    <section id="similitud" class="panel" role="tabpanel">
-      <h2>Requerimiento 1 · Similitud textual</h2>
-      <p class="ayuda">Seleccione dos o más artículos. Se comparan sus abstracts con cuatro algoritmos clásicos
-        (Levenshtein, Needleman-Wunsch, Jaccard y coseno TF-IDF) y dos modelos de IA basados en embeddings.</p>
-      <div class="barra">
-        <button class="boton secundario" id="sim-caso">Caso de estudio (11 y 16)</button>
-        <button class="boton secundario" id="sim-limpiar">Limpiar selección</button>
-        <button class="boton" id="sim-comparar">Comparar seleccionados</button>
-        <span class="estado" id="sim-estado"></span>
+    <section id="ranking" class="panel" role="tabpanel" aria-labelledby="t-ranking">
+      <div class="encabezado">
+        <h2 id="t-ranking">Ranking de términos</h2>
+        <p class="resumen" id="ranking-resumen">Counting Sort, Radix Sort y Bucket Sort ordenan la lista de
+          frecuencias sin comparar términos entre sí.</p>
       </div>
-      <div class="selector" id="sim-selector"></div>
+      <div id="ranking-resultado" class="estado-vacio">Calculando el ranking…</div>
+    </section>
+
+    <section id="similitud" class="panel" role="tabpanel" aria-labelledby="t-similitud">
+      <div class="encabezado">
+        <h2 id="t-similitud">Similitud textual</h2>
+        <p class="resumen">Cuatro algoritmos clásicos y dos modelos de IA comparan los abstracts elegidos.</p>
+      </div>
+      <div class="herramientas">
+        <button class="boton" id="sim-comparar">Comparar seleccionados</button>
+        <button class="boton secundario" id="sim-caso">Caso de estudio: 11 y 16</button>
+        <button class="boton fantasma" id="sim-limpiar">Limpiar</button>
+        <span class="estado" id="sim-estado" role="status"></span>
+      </div>
+      <fieldset class="selector" id="sim-selector">
+        <legend class="sr">Artículos a comparar</legend>
+      </fieldset>
       <div id="sim-resultado"></div>
     </section>
 
-    <section id="agrupamiento" class="panel" role="tabpanel">
-      <h2>Requerimiento 2 · Agrupamiento jerárquico</h2>
-      <p class="ayuda">Los 20 abstracts se representan como vectores, se calcula la distancia d = 1 − coseno y se
-        aplican tres criterios de enlace implementados desde cero. La coherencia se compara con el coeficiente de
-        correlación cofenética (CCC) y el coeficiente de silueta.</p>
-      <div class="barra">
-        <label for="agr-representacion">Representación</label>
-        <select id="agr-representacion"></select>
-        <span class="estado" id="agr-estado"></span>
+    <section id="agrupamiento" class="panel" role="tabpanel" aria-labelledby="t-agrupamiento">
+      <div class="encabezado">
+        <h2 id="t-agrupamiento">Agrupamiento jerárquico</h2>
+        <p class="resumen">Tres criterios de enlace sobre la distancia 1 − coseno; la coherencia se mide con la
+          correlación cofenética (CCC) y la silueta.</p>
+      </div>
+      <div class="herramientas">
+        <div class="segmentado" id="agr-representacion" role="radiogroup" aria-label="Representación"></div>
+        <span class="estado" id="agr-estado" role="status"></span>
       </div>
       <div id="agr-resultado"></div>
     </section>
 
-    <section id="busqueda" class="panel" role="tabpanel">
-      <h2>Requerimiento 3 · Búsqueda de patrones</h2>
-      <p class="ayuda">Busca las ocurrencias exactas del patrón en los 20 abstracts con Knuth-Morris-Pratt, Boyer-Moore
-        y Rabin-Karp, implementados sin funciones de búsqueda del lenguaje.</p>
-      <form class="barra" id="bus-formulario">
-        <label for="bus-patron">Patrón</label>
-        <input id="bus-patron" type="text" value="learning" maxlength="200" autocomplete="off">
+    <section id="busqueda" class="panel" role="tabpanel" aria-labelledby="t-busqueda">
+      <div class="encabezado">
+        <h2 id="t-busqueda">Búsqueda de patrones</h2>
+        <p class="resumen">Knuth-Morris-Pratt, Boyer-Moore y Rabin-Karp, sin funciones de búsqueda del lenguaje.</p>
+      </div>
+      <form class="herramientas" id="bus-formulario">
+        <label class="campo">
+          <span class="sr">Patrón</span>
+          <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5" /><path d="m10.5 10.5 3 3" /></svg>
+          <input id="bus-patron" type="text" value="learning" maxlength="200" autocomplete="off" spellcheck="false"
+                 placeholder="Escriba una palabra o frase">
+        </label>
         <label class="casilla"><input type="checkbox" id="bus-mayusculas" checked> Ignorar mayúsculas</label>
         <button class="boton" type="submit">Buscar</button>
-        <span class="estado" id="bus-estado"></span>
+        <span class="estado" id="bus-estado" role="status"></span>
       </form>
       <div id="bus-resultado"></div>
     </section>
   </main>
 
-  <footer class="pie contenedor">
-    Proyecto final · Nicolas Buitrago Martinez y Juan David Martinez Valencia · Docente: Sergio Augusto Cardona Torres
+  <footer class="pie">
+    <div class="contenedor pie-fila">
+      <p><strong>Bibliometría</strong> · Proyecto final de Análisis de Algoritmos, Universidad del Quindío, 2026-2</p>
+      <p>Nicolas Buitrago Martinez y Juan David Martinez Valencia · Docente: Sergio Augusto Cardona Torres</p>
+    </div>
   </footer>
   <script src="app.js"></script>
 </body>

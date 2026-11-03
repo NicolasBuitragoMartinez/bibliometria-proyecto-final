@@ -7,6 +7,7 @@ import java.net.InetSocketAddress;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,6 +24,12 @@ import co.edu.uniquindio.bibliometria.busqueda.BusquedaCorpus;
 import co.edu.uniquindio.bibliometria.busqueda.BusquedaCorpus.EnArticulo;
 import co.edu.uniquindio.bibliometria.busqueda.BusquedaCorpus.PorAlgoritmo;
 import co.edu.uniquindio.bibliometria.modelo.Articulo;
+import co.edu.uniquindio.bibliometria.ranking.ContadorFrecuencias;
+import co.edu.uniquindio.bibliometria.ranking.RankingTerminos;
+import co.edu.uniquindio.bibliometria.ranking.Termino;
+import co.edu.uniquindio.bibliometria.ranking.medicion.MedidorTiempos;
+import co.edu.uniquindio.bibliometria.ranking.medicion.MedidorTiempos.Medicion;
+import co.edu.uniquindio.bibliometria.ranking.ordenamiento.AlgoritmoOrdenamiento;
 import co.edu.uniquindio.bibliometria.similitud.AlgoritmoSimilitud;
 import co.edu.uniquindio.bibliometria.similitud.CatalogoSimilitud;
 import co.edu.uniquindio.bibliometria.texto.CorpusProcesado;
@@ -31,6 +38,7 @@ import co.edu.uniquindio.bibliometria.texto.CorpusProcesado;
  * Servidor web de la aplicación, con el HttpServer que trae el JDK. Sirve la interfaz (carpeta
  * resources/web) y una API JSON:
  *   GET /api/articulos                                   corpus con título, autores y abstract
+ *   GET /api/ranking                                     ranking de términos con Counting, Radix y Bucket Sort
  *   GET /api/similitud?articulos=1,5,9                   matrices de similitud de los seis algoritmos
  *   GET /api/agrupamiento?representacion=tfidf           dendrogramas y métricas de los tres criterios
  *   GET /api/busqueda?patron=learning&mayusculas=no      ocurrencias con KMP, Boyer-Moore y Rabin-Karp
@@ -41,6 +49,7 @@ public final class Servidor {
     private static final int MAXIMO_PATRON = 200;
 
     private final CorpusProcesado corpus;
+    private Map<String, Object> ranking;
 
     public Servidor(CorpusProcesado corpus) {
         this.corpus = corpus;
@@ -49,6 +58,7 @@ public final class Servidor {
     public void iniciar(int puerto) throws IOException {
         HttpServer servidor = HttpServer.create(new InetSocketAddress(puerto), 0);
         servidor.createContext("/api/articulos", ex -> responder(ex, p -> articulos()));
+        servidor.createContext("/api/ranking", ex -> responder(ex, p -> ranking()));
         servidor.createContext("/api/similitud", ex -> responder(ex, this::similitud));
         servidor.createContext("/api/agrupamiento", ex -> responder(ex, this::agrupamiento));
         servidor.createContext("/api/busqueda", ex -> responder(ex, this::busqueda));
@@ -73,6 +83,74 @@ public final class Servidor {
         Map<String, Object> respuesta = new LinkedHashMap<>();
         respuesta.put("articulos", lista);
         return respuesta;
+    }
+
+    /**
+     * Ranking de términos (capítulo 8 del documento): lista de frecuencias, top 15 de los tres
+     * ordenamientos no comparativos, verificación de que coinciden y tiempos medidos en este servidor.
+     * Se calcula una sola vez, en la primera consulta.
+     */
+    private synchronized Map<String, Object> ranking() {
+        if (ranking != null) {
+            return ranking;
+        }
+        List<List<String>> tokens = new ArrayList<>();
+        int palabras = 0;
+        for (int i = 0; i < corpus.tamano(); i++) {
+            tokens.add(corpus.tokens(i));
+            palabras += corpus.articulos().get(i).abstractTexto().split("\\s+").length;
+        }
+        Termino[] frecuencias = ContadorFrecuencias.contar(tokens);
+        int maxima = AlgoritmoOrdenamiento.frecuenciaMaxima(frecuencias);
+        int minima = AlgoritmoOrdenamiento.frecuenciaMinima(frecuencias);
+        int unaVez = 0;
+        for (Termino t : frecuencias) {
+            unaVez += t.frecuencia() == 1 ? 1 : 0;
+        }
+        Map<String, Object> cifras = new LinkedHashMap<>();
+        cifras.put("articulos", corpus.tamano());
+        cifras.put("palabras", palabras);
+        cifras.put("terminos", tokens.stream().mapToInt(List::size).sum());
+        cifras.put("distintos", frecuencias.length);
+        cifras.put("maxima", maxima);
+        cifras.put("minima", minima);
+        cifras.put("k", maxima - minima + 1);
+        cifras.put("unaVez", unaVez);
+
+        List<Termino[]> ordenados = new ArrayList<>();
+        for (AlgoritmoOrdenamiento algoritmo : RankingTerminos.ALGORITMOS) {
+            ordenados.add(algoritmo.ordenar(frecuencias));
+        }
+        boolean iguales = ordenados.stream().allMatch(o -> Arrays.equals(o, ordenados.get(0)));
+        List<Medicion> mediciones = MedidorTiempos.medir(RankingTerminos.ALGORITMOS, frecuencias, 1_000, 300);
+
+        List<Object> algoritmos = new ArrayList<>();
+        for (int a = 0; a < ordenados.size(); a++) {
+            List<Object> top = new ArrayList<>();
+            for (int i = 0; i < RankingTerminos.TOP; i++) {
+                top.add(Map.of("termino", ordenados.get(a)[i].palabra(), "frecuencia", ordenados.get(a)[i].frecuencia()));
+            }
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("nombre", RankingTerminos.ALGORITMOS.get(a).nombre());
+            m.put("msMediana", mediciones.get(a).medianaMs());
+            m.put("top", top);
+            algoritmos.add(m);
+        }
+        int frontera = ordenados.get(0)[RankingTerminos.TOP - 1].frecuencia();
+        List<Object> empatados = new ArrayList<>();
+        for (int i = 0; i < ordenados.get(0).length; i++) {
+            if (ordenados.get(0)[i].frecuencia() == frontera) {
+                empatados.add(Map.of("termino", ordenados.get(0)[i].palabra(), "posicion", i + 1));
+            }
+        }
+        Map<String, Object> respuesta = new LinkedHashMap<>();
+        respuesta.put("cifras", cifras);
+        respuesta.put("algoritmos", algoritmos);
+        respuesta.put("iguales", iguales);
+        respuesta.put("empate", Map.of("frecuencia", frontera, "terminos", empatados));
+        respuesta.put("repeticiones", 300);
+        ranking = respuesta;
+        return ranking;
     }
 
     private Map<String, Object> similitud(Map<String, String> parametros) {

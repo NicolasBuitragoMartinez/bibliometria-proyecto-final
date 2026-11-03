@@ -165,13 +165,14 @@ def arquitectura():
 
     caja(30, 80, 40, 10, "Navegador", "index.html · app.js · estilos.css", GRIS)
     salto = "\n"
-    caja(26, 59, 48, 14.5, "web", salto.join(["Servidor (HttpServer del JDK)", "API JSON: /api/articulos, /api/similitud,",
-                                              "/api/agrupamiento, /api/busqueda"]), AZUL)
-    caja(1, 33, 31, 19, "similitud", salto.join(["Levenshtein · Needleman-Wunsch", "Jaccard · Coseno TF-IDF",
-                                                 "Coseno de embeddings", "(GloVe, MiniLM)"]), AZUL)
-    caja(34.5, 33, 31, 19, "agrupamiento", salto.join(["Single, complete y", "average linkage", "CCC y silueta",
-                                                       "Dendrograma SVG"]), AZUL)
-    caja(68, 33, 31, 19, "busqueda", salto.join(["Knuth-Morris-Pratt", "Boyer-Moore", "Rabin-Karp"]), AZUL)
+    caja(26, 59, 48, 14.5, "web", salto.join(["Servidor (HttpServer del JDK)", "API JSON: /api/articulos, /api/ranking,",
+                                              "/api/similitud, /api/agrupamiento, /api/busqueda"]), AZUL)
+    caja(1, 33, 23, 19, "ranking", salto.join(["Counting Sort", "Radix Sort", "Bucket Sort", "Medición de tiempos"]), AZUL)
+    caja(26, 33, 23, 19, "similitud", salto.join(["Levenshtein", "Needleman-Wunsch", "Jaccard · TF-IDF",
+                                                  "GloVe y MiniLM"]), AZUL)
+    caja(51, 33, 23, 19, "agrupamiento", salto.join(["Single, complete y", "average linkage", "CCC y silueta",
+                                                     "Dendrograma SVG"]), AZUL)
+    caja(76, 33, 23, 19, "busqueda", salto.join(["Knuth-Morris-Pratt", "Boyer-Moore", "Rabin-Karp"]), AZUL)
     caja(26, 15.5, 48, 11.5, "texto", salto.join(["Preprocesador · CorpusProcesado",
                                                   "(texto normalizado, tokens, TF-IDF)"]), VERDE)
     caja(1, 0.5, 54, 11.5, "corpus", salto.join(["LectorPdf (PDFBox) · DelimitadorAbstract",
@@ -180,12 +181,10 @@ def arquitectura():
                                                                "embeddings/ (ia/generar_embeddings.py)"]), NARANJA)
 
     flecha(50, 79.6, 50, 74.0, "HTTP (JSON)")
-    flecha(40, 58.6, 17, 52.6)
-    flecha(50, 58.6, 50, 52.6)
-    flecha(60, 58.6, 83, 52.6)
-    flecha(17, 32.6, 38, 27.6)
-    flecha(50, 32.6, 50, 27.6)
-    flecha(83, 32.6, 62, 27.6)
+    for origen, destino in ((36, 12.5), (45, 37.5), (55, 62.5), (64, 87.5)):
+        flecha(origen, 58.6, destino, 52.6)
+    for origen, destino in ((12.5, 34), (37.5, 45), (62.5, 55), (87.5, 66)):
+        flecha(origen, 32.6, destino, 27.6)
     flecha(40, 15.1, 28, 12.6)
     flecha(58.6, 6.2, 55.6, 6.2)
     guardar(fig, "arquitectura.png")
