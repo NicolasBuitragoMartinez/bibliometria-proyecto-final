@@ -101,13 +101,16 @@
         <label class="campo">
           <span class="sr">Patrón</span>
           <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5" /><path d="m10.5 10.5 3 3" /></svg>
-          <input id="bus-patron" type="text" value="learning" maxlength="200" autocomplete="off" spellcheck="false"
-                 placeholder="Escriba una palabra o frase">
+          <input id="bus-patron" type="text" value="learning" maxlength="2010" autocomplete="off" spellcheck="false"
+                 placeholder="Una palabra o frase; varias, separadas por comas" aria-describedby="bus-ayuda">
         </label>
         <label class="casilla"><input type="checkbox" id="bus-mayusculas" checked> Ignorar mayúsculas</label>
         <button class="boton" type="submit">Buscar</button>
         <span class="estado" id="bus-estado" role="status"></span>
       </form>
+      <p class="ayuda" id="bus-ayuda">Para buscar de 2 a 10 patrones a la vez, sepárelos con comas (por ejemplo,
+        <code>learning, analysis, assessment</code>): Rabin-Karp los busca en una sola pasada por longitud y se compara con
+        KMP y Boyer-Moore ejecutados una vez por patrón.</p>
       <div id="bus-resultado"></div>
     </section>
   </main>

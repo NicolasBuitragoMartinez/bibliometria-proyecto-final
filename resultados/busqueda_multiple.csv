@@ -1,0 +1,33 @@
+conjunto,copias,n,patrones,longitudes,algoritmo,pasadas,ocurrencias,comparaciones,ventanas,colisiones,total_ms
+distintas_longitudes,1,28270,2,1,Rabin-Karp multipatrón,1,51,408,28263,0,1.0404
+distintas_longitudes,1,28270,2,1,Knuth-Morris-Pratt,2,51,59481,55621,0,0.2444
+distintas_longitudes,1,28270,2,1,Boyer-Moore,2,51,9498,8507,0,0.1198
+distintas_longitudes,1,28270,2,1,Rabin-Karp,2,51,408,56526,0,0.6183
+distintas_longitudes,1,28270,5,3,Rabin-Karp multipatrón,3,190,1684,84786,0,1.3356
+distintas_longitudes,1,28270,5,3,Knuth-Morris-Pratt,5,190,150897,138649,0,0.6748
+distintas_longitudes,1,28270,5,3,Boyer-Moore,5,190,23951,20447,0,0.3072
+distintas_longitudes,1,28270,5,3,Rabin-Karp,5,190,1684,141312,0,1.6122
+distintas_longitudes,1,28270,10,5,Rabin-Karp multipatrón,5,448,2864,141310,0,2.0857
+distintas_longitudes,1,28270,10,5,Knuth-Morris-Pratt,10,448,298717,278050,0,1.2965
+distintas_longitudes,1,28270,10,5,Boyer-Moore,10,448,58116,50536,0,0.7365
+distintas_longitudes,1,28270,10,5,Rabin-Karp,10,448,2864,282623,0,3.1114
+misma_longitud,1,28270,10,1,Rabin-Karp multipatrón,1,175,1400,28263,0,0.5812
+misma_longitud,1,28270,10,1,Knuth-Morris-Pratt,10,175,297564,278454,0,1.2439
+misma_longitud,1,28270,10,1,Boyer-Moore,10,175,47892,43411,0,0.6131
+misma_longitud,1,28270,10,1,Rabin-Karp,10,175,1400,282630,0,3.1001
+distintas_longitudes,10,282700,2,1,Rabin-Karp multipatrón,1,510,4080,282693,0,3.8030
+distintas_longitudes,10,282700,2,1,Knuth-Morris-Pratt,2,510,594810,556192,0,2.8113
+distintas_longitudes,10,282700,2,1,Boyer-Moore,2,510,94917,85052,0,1.1658
+distintas_longitudes,10,282700,2,1,Rabin-Karp,2,510,4080,565386,0,6.3463
+distintas_longitudes,10,282700,5,3,Rabin-Karp multipatrón,3,1900,16840,848076,0,11.4305
+distintas_longitudes,10,282700,5,3,Knuth-Morris-Pratt,5,1900,1508970,1386445,0,7.0426
+distintas_longitudes,10,282700,5,3,Boyer-Moore,5,1900,239456,204479,0,2.8330
+distintas_longitudes,10,282700,5,3,Rabin-Karp,5,1900,16840,1413462,0,16.0795
+distintas_longitudes,10,282700,10,5,Rabin-Karp multipatrón,5,4480,28640,1413460,0,19.4752
+distintas_longitudes,10,282700,10,5,Knuth-Morris-Pratt,10,4480,2987170,2780410,0,13.3904
+distintas_longitudes,10,282700,10,5,Boyer-Moore,10,4480,581142,505432,0,7.0191
+distintas_longitudes,10,282700,10,5,Rabin-Karp,10,4480,28640,2826923,0,31.7208
+misma_longitud,10,282700,10,1,Rabin-Karp multipatrón,1,1750,14000,282693,0,3.9895
+misma_longitud,10,282700,10,1,Knuth-Morris-Pratt,10,1750,2975640,2784450,0,12.8836
+misma_longitud,10,282700,10,1,Boyer-Moore,10,1750,478947,434173,0,5.9222
+misma_longitud,10,282700,10,1,Rabin-Karp,10,1750,14000,2826930,0,31.5949

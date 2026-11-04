@@ -14,6 +14,7 @@ import co.edu.uniquindio.bibliometria.agrupamiento.AnalisisAgrupamiento;
 import co.edu.uniquindio.bibliometria.busqueda.AlgoritmoBusqueda;
 import co.edu.uniquindio.bibliometria.busqueda.AlgoritmoBusqueda.Resultado;
 import co.edu.uniquindio.bibliometria.busqueda.BusquedaCorpus;
+import co.edu.uniquindio.bibliometria.busqueda.RabinKarpMultiple;
 import co.edu.uniquindio.bibliometria.modelo.Articulo;
 import co.edu.uniquindio.bibliometria.similitud.AlgoritmoSimilitud;
 import co.edu.uniquindio.bibliometria.similitud.CatalogoSimilitud;
@@ -28,9 +29,21 @@ public final class Experimentos {
 
     private static final int CALENTAMIENTO = 5;
     private static final int REPETICIONES = 15;
+    /**
+     * Calentamiento de la búsqueda multipatrón: el método multipatrón se llama una vez por ronda y los
+     * de un patrón k veces, así que con 5 rondas el JIT aún no lo habría compilado y la comparación
+     * sería injusta.
+     */
+    private static final int CALENTAMIENTO_MULTIPLE = 60;
     /** Patrones de longitud creciente tomados del corpus. */
     private static final String[] PATRONES = {"ai", "data", "learning", "assessment", "higher education",
             "artificial intelligence", "generative artificial intelligence", "artificial intelligence in education"};
+    /** Patrones del corpus para la búsqueda multipatrón; se toman los primeros 2, 5 y 10. */
+    private static final String[] PATRONES_MULTIPLES = {"learning", "analysis", "assessment", "students",
+            "education", "research", "ai", "higher education", "generative", "teachers"};
+    /** Diez patrones de la misma longitud (m = 8): Rabin-Karp multipatrón los busca en una sola pasada. */
+    private static final String[] PATRONES_MISMA_LONGITUD = {"research", "learning", "findings", "students",
+            "articles", "analysis", "teaching", "relevant", "teachers", "learners"};
     /** Veces que se repite el texto del corpus (unos 28.000 caracteres) para el experimento de tamaño. */
     private static final int[] COPIAS = {1, 10, 100};
 
@@ -177,6 +190,73 @@ public final class Experimentos {
                     r.comparaciones(), r.ventanas(), r.colisiones(), cuantil(preproceso[a], 0.5),
                     cuantil(busqueda[a], 0.5), (double) r.comparaciones() / texto.length()));
         }
+    }
+
+    /**
+     * Rabin-Karp multipatrón frente a KMP, Boyer-Moore y Rabin-Karp ejecutados una vez por patrón, con
+     * 2, 5 y 10 patrones del corpus de distintas longitudes y con 10 de la misma longitud, sobre los 20
+     * abstracts unidos (copiados 1 y 10 veces). Se ejecuta aparte (modo multipatron) para no volver a generar los demás archivos de resultados.
+     */
+    public static void busquedaMultiple(CorpusProcesado corpus, Path carpeta) throws IOException {
+        Files.createDirectories(carpeta);
+        StringBuilder unido = new StringBuilder();
+        for (Articulo a : corpus.articulos()) {
+            unido.append(BusquedaCorpus.minusculas(a.abstractTexto())).append(' ');
+        }
+        List<String> csv = new ArrayList<>();
+        csv.add("conjunto,copias,n,patrones,longitudes,algoritmo,pasadas,ocurrencias,comparaciones,ventanas,colisiones,"
+                + "total_ms");
+        RabinKarpMultiple multiple = new RabinKarpMultiple();
+        for (int copias : new int[] {1, 10}) {
+            String texto = unido.toString().repeat(copias);
+            // 2, 5 y 10 patrones de distintas longitudes; con 0, los diez de la misma longitud.
+            for (int cantidad : new int[] {2, 5, 10, 0}) {
+                String conjunto = cantidad > 0 ? "distintas_longitudes" : "misma_longitud";
+                List<String> patrones = cantidad > 0 ? List.of(PATRONES_MULTIPLES).subList(0, cantidad)
+                        : List.of(PATRONES_MISMA_LONGITUD);
+                int k = patrones.size();
+                long longitudes = patrones.stream().mapToInt(String::length).distinct().count();
+                double[][] ms = new double[BusquedaCorpus.ALGORITMOS.size() + 1][REPETICIONES];
+                long[][] cifras = new long[BusquedaCorpus.ALGORITMOS.size() + 1][5];
+                for (int r = -CALENTAMIENTO_MULTIPLE; r < REPETICIONES; r++) {
+                    RabinKarpMultiple.Resultado rm = multiple.buscar(texto, patrones);
+                    int ocurrencias = 0;
+                    for (List<Integer> p : rm.posiciones().values()) {
+                        ocurrencias += p.size();
+                    }
+                    cifras[0] = new long[] {rm.pasadas(), ocurrencias, rm.comparaciones(), rm.ventanas(), rm.colisiones()};
+                    if (r >= 0) {
+                        ms[0][r] = (rm.nanosPreproceso() + rm.nanosBusqueda()) / 1e6;
+                    }
+                    for (int a = 0; a < BusquedaCorpus.ALGORITMOS.size(); a++) {
+                        long[] c = new long[5];
+                        long nanos = 0;
+                        for (String patron : patrones) {
+                            Resultado res = BusquedaCorpus.ALGORITMOS.get(a).buscar(texto, patron);
+                            c[0]++;
+                            c[1] += res.posiciones().size();
+                            c[2] += res.comparaciones();
+                            c[3] += res.ventanas();
+                            c[4] += res.colisiones();
+                            nanos += res.nanosPreproceso() + res.nanosBusqueda();
+                        }
+                        cifras[a + 1] = c;
+                        if (r >= 0) {
+                            ms[a + 1][r] = nanos / 1e6;
+                        }
+                    }
+                    sumidero += ocurrencias;
+                }
+                for (int a = 0; a <= BusquedaCorpus.ALGORITMOS.size(); a++) {
+                    String nombre = a == 0 ? multiple.nombre() : BusquedaCorpus.ALGORITMOS.get(a - 1).nombre();
+                    long[] c = cifras[a];
+                    csv.add(String.format(Locale.ROOT, "%s,%d,%d,%d,%d,%s,%d,%d,%d,%d,%d,%.4f", conjunto, copias, texto.length(), k,
+                            longitudes, nombre, c[0], c[1], c[2], c[3], c[4], cuantil(ms[a], 0.5)));
+                }
+            }
+        }
+        escribir(carpeta.resolve("busqueda_multiple.csv"), csv);
+        System.out.println("Búsqueda multipatrón: resultados en busqueda_multiple.csv");
     }
 
     static double cuantil(double[] valores, double p) {

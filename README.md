@@ -15,7 +15,7 @@ términos del seguimiento con las correcciones del docente:
 |---|---|---|
 | 1. Similitud textual | Levenshtein, Needleman-Wunsch, Jaccard, coseno TF-IDF; coseno entre embeddings de GloVe y de all-MiniLM-L6-v2 | `similitud` |
 | 2. Agrupamiento jerárquico | Single, complete y average linkage (Lance-Williams), dendrogramas SVG, correlación cofenética y silueta | `agrupamiento` |
-| 3. Búsqueda de patrones | Knuth-Morris-Pratt, Boyer-Moore (carácter malo + sufijo bueno), Rabin-Karp (hash rodante) | `busqueda` |
+| 3. Búsqueda de patrones | Knuth-Morris-Pratt, Boyer-Moore (carácter malo + sufijo bueno), Rabin-Karp (hash rodante) y Rabin-Karp multipatrón (varios patrones en una pasada por longitud) | `busqueda` |
 | 4. Despliegue | Servidor HTTP del JDK + interfaz web; imagen Docker | `web`, `Dockerfile` |
 | Ranking de términos | Counting Sort, Radix Sort (LSD, colas enlazadas) y Bucket Sort; medición en JVM nuevas y experimento de memoria | `ranking` |
 
@@ -28,7 +28,10 @@ la similitud del coseno y la distancia euclidiana entre los vectores las calcula
 
 La interfaz tiene cinco pestañas: Corpus (título, autores, año y abstract de cada artículo), Ranking
 de términos, Similitud, Agrupamiento (con los artículos de cada grupo) y Búsqueda de patrones, que
-incluye un **paso a paso** de KMP, Boyer-Moore y Rabin-Karp sobre la oración de cada ocurrencia.
+incluye un **paso a paso** de KMP, Boyer-Moore y Rabin-Karp sobre la oración de cada ocurrencia. Si se
+escriben de 2 a 10 patrones separados por comas, la pestaña compara **Rabin-Karp multipatrón** (una pasada
+por cada longitud distinta, con una tabla hash de hash → patrones) con KMP, Boyer-Moore y Rabin-Karp
+ejecutados una vez por patrón, y muestra las ocurrencias de cada patrón.
 Al comparar dos artículos, la pestaña Similitud muestra además la **matriz paso a paso** de
 Levenshtein o de Needleman-Wunsch: la llena celda por celda con su recurrencia y termina con el
 camino óptimo y el alineamiento que le corresponde.
@@ -41,9 +44,11 @@ camino óptimo y el alineamiento que le corresponde.
 | `GET /api/matriz?algoritmo=levenshtein&a=11&b=16&n=12` | Matriz de programación dinámica (Levenshtein sobre los primeros n caracteres o `needleman` sobre los primeros n términos, n de 2 a 20) y camino óptimo |
 | `GET /api/agrupamiento?representacion=tfidf` | Fusiones, CCC, silueta, grupos del mejor corte y dendrogramas |
 | `GET /api/busqueda?patron=learning` | Ocurrencias y estadísticas de los tres algoritmos |
+| `GET /api/busqueda-multiple?patrones=learning,analysis,assessment&mayusculas=si` | De 2 a 10 patrones: ocurrencias de cada uno y comparación de Rabin-Karp multipatrón con KMP, Boyer-Moore y Rabin-Karp una vez por patrón |
 | `GET /api/pasos?patron=analysis&articulo=18&posicion=426&q=pequeno` | Cada alineación de los tres algoritmos |
 
 Enlaces directos: `#similitud=11,16`, `#agrupamiento=minilm`, `#busqueda=analysis`,
+`#busqueda=learning,analysis,assessment` (varios patrones),
 `#pasos=analysis,18,426` (caso de estudio paso a paso) y `#ranking`.
 
 ## Requisitos
@@ -57,6 +62,7 @@ Enlaces directos: `#similitud=11,16`, `#agrupamiento=minilm`, `#busqueda=analysi
 mvn package
 java -jar target/bibliometria.jar                 # servidor en http://localhost:8080
 java -jar target/bibliometria.jar experimentos    # CSV de tiempos y métricas en resultados/
+java -jar target/bibliometria.jar multipatron     # solo la búsqueda de varios patrones (resultados/busqueda_multiple.csv)
 java -jar target/bibliometria.jar trazas          # demostraciones paso a paso en resultados/trazas/
 java -cp target/bibliometria.jar co.edu.uniquindio.bibliometria.ranking.RankingTerminos corpus --corridas 30 --escalabilidad --memoria
 python verificacion/verificar_conteo.py           # verificación independiente del ranking

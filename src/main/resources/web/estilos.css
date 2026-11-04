@@ -197,6 +197,18 @@ mark { background: var(--marca); color: var(--tinta); padding: 0 2px; border-rad
 }
 .enlace-paso:hover { color: var(--tinta); }
 
+/* ---------- Búsqueda de varios patrones ---------- */
+.tabla tr.destacada td { background: var(--clasico-suave); }
+.tabla tr.destacada td:first-child { font-weight: 600; color: var(--clasico); }
+/* Un tono por patrón; texto oscuro sobre fondo claro para conservar el contraste. */
+.chip-patron { display: inline-block; margin-right: 8px; padding: 0 7px; border-radius: 999px; font-family: var(--mono);
+  font-size: 12.5px; line-height: 1.6; color: var(--tinta); background: var(--superficie-2); box-shadow: inset 0 0 0 1px var(--borde-fuerte); }
+.chip-patron.p0 { background: #e7eefa; } .chip-patron.p1 { background: #fbece4; } .chip-patron.p2 { background: #dff1e8; }
+.chip-patron.p3 { background: #efe4f6; } .chip-patron.p4 { background: #f8e1df; } .chip-patron.p5 { background: #f6efcf; }
+.chip-patron.p6 { background: #d9f0ec; } .chip-patron.p7 { background: #e9ebee; } .chip-patron.p8 { background: #fde6f0; }
+.chip-patron.p9 { background: #e3e8f8; }
+.ayuda { margin: -8px 0 16px; color: var(--tinta-3); font-size: 13px; }
+
 /* ---------- Paso a paso de la búsqueda ---------- */
 /* Ancho fijo en píxeles: la regla usa letra más pequeña y debe quedar alineada con el texto. */
 #pasos { --celda: 19px; }

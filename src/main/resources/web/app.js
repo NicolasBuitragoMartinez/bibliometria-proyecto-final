@@ -501,21 +501,33 @@ function gruposHtml(r) {
 }
 
 // ---------- Búsqueda ----------
+/** Patrones escritos separados por comas, sin espacios en los extremos ni vacíos. */
+const patronesEscritos = (texto) => texto.split(",").map((p) => p.trim()).filter(Boolean);
+
 async function buscar(caso = {}) {
-  const patron = $("#bus-patron").value;
-  if (!patron.trim()) {
+  const escrito = $("#bus-patron").value;
+  if (!escrito.trim()) {
     mostrarEstado("#bus-estado", "Escriba un patrón para buscar.", "error");
     return;
   }
+  // Con dos o más patrones distintos separados por comas se usa la búsqueda multipatrón.
+  const mayusculas = $("#bus-mayusculas").checked;
+  const distintos = new Set(patronesEscritos(escrito).map((p) => (mayusculas ? p.toLowerCase() : p)));
+  if (escrito.includes(",") && distintos.size >= 2) {
+    buscarVarios(patronesEscritos(escrito));
+    return;
+  }
+  const patron = escrito.includes(",") ? patronesEscritos(escrito)[0] || "" : escrito;
   mostrarEstado("#bus-estado", "Buscando…");
   try {
-    const parametros = new URLSearchParams({ patron, mayusculas: $("#bus-mayusculas").checked ? "si" : "no" });
+    const parametros = new URLSearchParams({ patron, mayusculas: mayusculas ? "si" : "no" });
     const d = await api("/api/busqueda?" + parametros);
     history.replaceState(null, "", "#busqueda=" + encodeURIComponent(patron));
     const total = d.algoritmos[0].ocurrencias;
-    mostrarEstado("#bus-estado", total
-      ? `${total} ocurrencias en ${d.articulos.length} abstracts; los tres algoritmos encontraron las mismas posiciones`
-      : "Sin ocurrencias en los 20 abstracts", d.coinciden && total ? "ok" : "");
+    mostrarEstado("#bus-estado", !total ? "Sin ocurrencias en los 20 abstracts"
+      : `${total} ocurrencias en ${d.articulos.length} abstracts; ${d.coinciden
+        ? "los tres algoritmos encontraron las mismas posiciones" : "los algoritmos no coinciden en las posiciones"}`,
+    !total ? "" : d.coinciden ? "ok" : "error");
     const tabla = `<div class="bloque"><div class="bloque-cabeza"><h3>Comparación de los algoritmos</h3>
       <span class="meta">preprocesamiento del patrón y búsqueda en los 20 abstracts</span></div>
       <div class="marco"><table class="tabla compacta"><thead><tr><th>Algoritmo</th><th class="num">Comparaciones</th>
@@ -533,13 +545,78 @@ async function buscar(caso = {}) {
       </div>`).join("")}</div>` : "";
     const paso = total ? '<div class="bloque" id="pasos"><span class="esqueleto"></span></div>' : "";
     $("#bus-resultado").innerHTML = tabla + paso + ocurrencias;
-    $("#bus-resultado").querySelectorAll(".enlace-paso").forEach((b) => b.addEventListener("click", async () => {
-      await cargarPasos(Number(b.dataset.articulo), Number(b.dataset.posicion));
-      $("#pasos").scrollIntoView({ behavior: "smooth", block: "start" });
-    }));
+    activarEnlacesPaso(patron);
     if (total) {
       const primero = d.articulos[0];
-      cargarPasos(caso.articulo || primero.numero, caso.posicion ?? primero.fragmentos[0].posicion, caso.irAOcurrencia);
+      cargarPasos(patron, caso.articulo || primero.numero, caso.posicion ?? primero.fragmentos[0].posicion,
+        caso.irAOcurrencia);
+    }
+  } catch (e) {
+    mostrarEstado("#bus-estado", e.message, "error");
+  }
+}
+
+/** Los botones «Paso a paso» de cada ocurrencia; en la búsqueda multipatrón cada uno lleva su patrón. */
+function activarEnlacesPaso(patron) {
+  $("#bus-resultado").querySelectorAll(".enlace-paso").forEach((b) => b.addEventListener("click", async () => {
+    await cargarPasos(b.dataset.patron || patron, Number(b.dataset.articulo), Number(b.dataset.posicion));
+    $("#pasos").scrollIntoView({ behavior: "smooth", block: "start" });
+  }));
+}
+
+// ---------- Búsqueda: varios patrones con Rabin-Karp ----------
+// Rabin-Karp multipatrón recorre cada abstract una vez por longitud distinta; KMP, Boyer-Moore y
+// Rabin-Karp de un patrón se ejecutan una vez por patrón. Lo calcula el servidor.
+async function buscarVarios(patrones) {
+  mostrarEstado("#bus-estado", "Buscando…");
+  try {
+    const parametros = new URLSearchParams({ patrones: patrones.join(","),
+      mayusculas: $("#bus-mayusculas").checked ? "si" : "no" });
+    const d = await api("/api/busqueda-multiple?" + parametros);
+    history.replaceState(null, "", "#busqueda=" + encodeURIComponent(patrones.join(",")));
+    const total = d.porPatron.reduce((suma, p) => suma + p.ocurrencias, 0);
+    mostrarEstado("#bus-estado", `${d.patrones.length} patrones · ${total} ocurrencias en ${d.articulos.length} abstracts; `
+      + (d.coinciden ? "los cuatro recorridos encontraron las mismas posiciones" : "los algoritmos no coinciden en las posiciones"),
+    d.coinciden ? "ok" : "error");
+    const multiple = d.algoritmos[0];
+    const kmp = d.algoritmos[1];
+    const tiempo = (a) => a.msPreproceso + a.msBusqueda;
+    const tabla = `<div class="bloque"><div class="bloque-cabeza"><h3>Varios patrones a la vez</h3>
+        <span class="meta">${d.patrones.length} patrones en los 20 abstracts · Rabin-Karp multipatrón recorre cada texto una vez por
+          longitud distinta (${multiple.pasadas}) y los demás una vez por patrón (${kmp.pasadas})</span></div>
+      <div class="marco"><table class="tabla compacta"><thead><tr><th>Algoritmo</th><th class="num">Pasadas por texto</th>
+        <th class="num">Comparaciones</th><th class="num">Alineaciones</th><th class="num">Colisiones</th>
+        <th class="num">Preproceso (ms)</th><th class="num">Búsqueda (ms)</th></tr></thead><tbody>
+      ${d.algoritmos.map((a, i) => `<tr${i === 0 ? ' class="destacada"' : ""}><td>${escapar(a.nombre)}${i === 0 ? ""
+        : ' <span class="meta">× patrón</span>'}</td><td class="num">${a.pasadas}</td><td class="num">${numero(a.comparaciones)}</td>
+        <td class="num">${numero(a.ventanas)}</td><td class="num">${a.colisiones}</td>
+        <td class="num">${numero(a.msPreproceso, 4)}</td><td class="num">${numero(a.msBusqueda, 4)}</td></tr>`).join("")}
+      </tbody></table></div>
+      <p class="meta" style="margin:12px 0 0">Rabin-Karp multipatrón examinó ${numero(multiple.ventanas)} ventanas, frente a
+        ${numero(d.algoritmos[3].ventanas)} de Rabin-Karp ejecutado una vez por patrón: el hash de cada ventana se compara con los de
+        todos los patrones de su longitud en una tabla hash. Tiempo total de esta consulta: ${numero(tiempo(multiple), 3)} ms frente a
+        ${numero(tiempo(kmp), 3)} ms de KMP y ${numero(tiempo(d.algoritmos[2]), 3)} ms de Boyer-Moore (una sola ejecución, sin calentamiento).</p></div>`;
+    const resumen = `<div class="bloque"><div class="bloque-cabeza"><h3>Ocurrencias de cada patrón</h3>
+        <span class="meta">mismas posiciones que KMP, Boyer-Moore y Rabin-Karp de un patrón</span></div>
+      <div class="marco"><table class="tabla compacta"><thead><tr><th>Patrón</th><th class="num">Ocurrencias</th>
+        <th class="num">Abstracts</th><th class="centro">Coinciden</th></tr></thead><tbody>
+      ${d.porPatron.map((p, i) => `<tr><td><span class="chip-patron p${i % 10}">${escapar(p.patron)}</span></td>
+        <td class="num">${numero(p.ocurrencias)}</td><td class="num">${p.articulos}</td>
+        <td class="centro">${p.coinciden ? CHECK : '<span class="error">No</span>'}</td></tr>`).join("")}
+      </tbody></table></div></div>`;
+    const indice = new Map(d.patrones.map((p, i) => [p, i % 10]));
+    const ocurrencias = d.articulos.length ? `<div class="bloque">${d.articulos
+      .map((a) => `<div class="ocurrencia"><h3>${a.numero}. ${escapar(a.titulo)}</h3>
+        <span class="meta">${escapar(a.autoresCortos)} (${anioTexto(a)}) · ${a.fragmentos.length} ${a.fragmentos.length === 1 ? "ocurrencia" : "ocurrencias"}</span>
+        ${a.fragmentos.map((f) => `<p class="fragmento"><span class="pos">car. ${f.posicion}</span><span class="chip-patron p${indice.get(f.patron)}">${escapar(f.patron)}</span>${escapar(f.antes)}<mark>${escapar(f.coincidencia)}</mark>${escapar(f.despues)}
+          <button type="button" class="enlace-paso" data-patron="${escapar(f.patron)}" data-articulo="${a.numero}" data-posicion="${f.posicion}">Paso a paso</button></p>`).join("")}
+      </div>`).join("")}</div>` : "";
+    const paso = total ? '<div class="bloque" id="pasos"><span class="esqueleto"></span></div>' : "";
+    $("#bus-resultado").innerHTML = tabla + resumen + paso + ocurrencias;
+    activarEnlacesPaso(d.patrones[0]);
+    if (total) {
+      const primero = d.articulos[0];
+      cargarPasos(primero.fragmentos[0].patron, primero.numero, primero.fragmentos[0].posicion);
     }
   } catch (e) {
     mostrarEstado("#bus-estado", e.message, "error");
@@ -553,14 +630,14 @@ $("#bus-formulario").addEventListener("submit", (evento) => {
 
 // ---------- Búsqueda: paso a paso ----------
 // Cada alineación del patrón sobre una oración: qué se compara, dónde falla y cuánto se desplaza.
-const pasos = { datos: null, algoritmo: 0, paso: 0, articulo: 0, posicion: 0, q: "pequeno" };
+const pasos = { datos: null, algoritmo: 0, paso: 0, patron: "", articulo: 0, posicion: 0, q: "pequeno" };
 const FLECHA_IZQ = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m10 3.5-4.5 4.5 4.5 4.5"/></svg>';
 const FLECHA_DER = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3.5 4.5 4.5-4.5 4.5"/></svg>';
 
-async function cargarPasos(articulo, posicion, irAOcurrencia = false) {
-  Object.assign(pasos, { articulo, posicion });
+async function cargarPasos(patron, articulo, posicion, irAOcurrencia = false) {
+  Object.assign(pasos, { patron, articulo, posicion });
   try {
-    const parametros = new URLSearchParams({ patron: $("#bus-patron").value, articulo, posicion, q: pasos.q });
+    const parametros = new URLSearchParams({ patron, articulo, posicion, q: pasos.q });
     pasos.datos = await api("/api/pasos?" + parametros);
     pasos.paso = 0;
     dibujarPasos();
@@ -639,7 +716,7 @@ function dibujarPasos() {
   contenedor.querySelectorAll("[data-q]").forEach((b) => b.addEventListener("click", () => {
     if (b.dataset.q === pasos.q) return;
     pasos.q = b.dataset.q;
-    cargarPasos(pasos.articulo, pasos.posicion);
+    cargarPasos(pasos.patron, pasos.articulo, pasos.posicion);
   }));
   const ir = (paso) => {
     pasos.paso = Math.max(0, Math.min(r.alineaciones.length - 1, paso));

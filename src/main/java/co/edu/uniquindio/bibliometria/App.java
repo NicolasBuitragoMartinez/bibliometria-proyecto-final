@@ -16,9 +16,10 @@ import co.edu.uniquindio.bibliometria.web.Servidor;
 /**
  * Proyecto final: análisis de algoritmos en el contexto de la bibliometría.
  *
- * Uso: java -jar bibliometria.jar [servidor | experimentos | trazas] [carpetaCorpus]
+ * Uso: java -jar bibliometria.jar [servidor | experimentos | multipatron | trazas] [carpetaCorpus]
  *  - servidor (por defecto): aplicación web en el puerto de la variable PORT (8080 si no existe).
  *  - experimentos: mide los algoritmos de los tres requerimientos y guarda los CSV en resultados/.
+ *  - multipatron: mide solo la búsqueda de varios patrones (resultados/busqueda_multiple.csv).
  *  - trazas: genera en resultados/trazas/ las demostraciones paso a paso del documento técnico.
  */
 public final class App {
@@ -36,6 +37,7 @@ public final class App {
         switch (modo) {
             case "experimentos" -> Experimentos.ejecutar(corpus, Path.of("resultados"));
             case "trazas" -> Trazas.generar(corpus, Path.of("resultados", "trazas"));
+            case "multipatron" -> Experimentos.busquedaMultiple(corpus, Path.of("resultados"));
             default -> new Servidor(corpus).iniciar(puerto());
         }
     }

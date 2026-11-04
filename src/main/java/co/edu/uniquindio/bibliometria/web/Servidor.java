@@ -9,9 +9,11 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.function.Function;
 
@@ -48,6 +50,9 @@ import co.edu.uniquindio.bibliometria.texto.CorpusProcesado;
  *   GET /api/similitud?articulos=1,5,9                   matrices de similitud de los seis algoritmos
  *   GET /api/agrupamiento?representacion=tfidf           dendrogramas y métricas de los tres criterios
  *   GET /api/busqueda?patron=learning&mayusculas=no      ocurrencias con KMP, Boyer-Moore y Rabin-Karp
+ *   GET /api/busqueda-multiple?patrones=learning,analysis,assessment&mayusculas=si
+ *                                                        de 2 a 10 patrones: Rabin-Karp multipatrón frente a
+ *                                                        KMP, Boyer-Moore y Rabin-Karp una vez por patrón
  *   GET /api/pasos?patron=analysis&articulo=18&posicion=426&q=13
  *                                                        paso a paso de los tres algoritmos en una oración
  *   GET /api/matriz?algoritmo=levenshtein&a=11&b=16&n=12 matriz de programación dinámica y camino óptimo
@@ -56,6 +61,8 @@ public final class Servidor {
 
     private static final int CONTEXTO_FRAGMENTO = 45;
     private static final int MAXIMO_PATRON = 200;
+    private static final int MINIMO_PATRONES = 2;
+    private static final int MAXIMO_PATRONES = 10;
     private static final int MATRIZ_MINIMO = 2;
     private static final int MATRIZ_MAXIMO = 20;
 
@@ -73,6 +80,7 @@ public final class Servidor {
         servidor.createContext("/api/similitud", ex -> responder(ex, this::similitud));
         servidor.createContext("/api/agrupamiento", ex -> responder(ex, this::agrupamiento));
         servidor.createContext("/api/busqueda", ex -> responder(ex, this::busqueda));
+        servidor.createContext("/api/busqueda-multiple", ex -> responder(ex, this::busquedaMultiple));
         servidor.createContext("/api/pasos", ex -> responder(ex, this::pasos));
         servidor.createContext("/api/matriz", ex -> responder(ex, this::matriz));
         servidor.createContext("/", this::recursoEstatico);
@@ -440,18 +448,9 @@ public final class Servidor {
             String texto = articulo.abstractTexto();
             List<Object> fragmentos = new ArrayList<>();
             for (int posicion : r.posiciones()) {
-                int desde = Math.max(0, posicion - CONTEXTO_FRAGMENTO);
-                int hasta = Math.min(texto.length(), posicion + patron.length() + CONTEXTO_FRAGMENTO);
-                fragmentos.add(Map.of("posicion", posicion,
-                        "antes", (desde > 0 ? "…" : "") + texto.substring(desde, posicion),
-                        "coincidencia", texto.substring(posicion, posicion + patron.length()),
-                        "despues", texto.substring(posicion + patron.length(), hasta) + (hasta < texto.length() ? "…" : "")));
+                fragmentos.add(fragmento(texto, posicion, patron.length()));
             }
-            Map<String, Object> m = new LinkedHashMap<>();
-            m.put("numero", articulo.numero());
-            m.put("titulo", articulo.titulo());
-            m.put("autoresCortos", articulo.autoresCortos());
-            m.put("anio", articulo.anio());
+            Map<String, Object> m = new LinkedHashMap<>(resumenArticulo(articulo));
             m.put("fragmentos", fragmentos);
             articulos.add(m);
         }
@@ -462,6 +461,98 @@ public final class Servidor {
         respuesta.put("coinciden", coinciden);
         respuesta.put("articulos", articulos);
         return respuesta;
+    }
+
+    /**
+     * Varios patrones a la vez: Rabin-Karp multipatrón (una pasada por longitud distinta) frente a KMP,
+     * Boyer-Moore y Rabin-Karp ejecutados una vez por patrón, y las ocurrencias de cada patrón.
+     */
+    private Map<String, Object> busquedaMultiple(Map<String, String> parametros) {
+        boolean ignorar = !"no".equals(parametros.get("mayusculas"));
+        Set<String> patrones = new LinkedHashSet<>();
+        for (String parte : parametros.getOrDefault("patrones", "").split(",")) {
+            String patron = parte.strip();
+            if (patron.length() > MAXIMO_PATRON) {
+                throw new IllegalArgumentException("Cada patrón debe tener como máximo " + MAXIMO_PATRON + " caracteres");
+            }
+            if (!patron.isEmpty()) {
+                patrones.add(ignorar ? BusquedaCorpus.minusculas(patron) : patron);
+            }
+        }
+        if (patrones.size() < MINIMO_PATRONES || patrones.size() > MAXIMO_PATRONES) {
+            throw new IllegalArgumentException("Escriba de " + MINIMO_PATRONES + " a " + MAXIMO_PATRONES
+                    + " patrones distintos separados por comas");
+        }
+        BusquedaCorpus.BusquedaMultiple r =
+                BusquedaCorpus.buscarVarios(corpus.articulos(), new ArrayList<>(patrones), ignorar);
+
+        List<Object> algoritmos = new ArrayList<>();
+        for (BusquedaCorpus.FilaMultiple f : r.algoritmos()) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("nombre", f.algoritmo());
+            m.put("pasadas", f.pasadas());
+            m.put("comparaciones", f.comparaciones());
+            m.put("ventanas", f.ventanas());
+            m.put("colisiones", f.colisiones());
+            m.put("msPreproceso", f.nanosPreproceso() / 1e6);
+            m.put("msBusqueda", f.nanosBusqueda() / 1e6);
+            algoritmos.add(m);
+        }
+
+        List<Object> porPatron = new ArrayList<>();
+        for (String patron : r.patrones()) {
+            int ocurrencias = 0;
+            int conOcurrencias = 0;
+            for (Map<String, List<Integer>> posiciones : r.posicionesPorArticulo()) {
+                ocurrencias += posiciones.get(patron).size();
+                conOcurrencias += posiciones.get(patron).isEmpty() ? 0 : 1;
+            }
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("patron", patron);
+            m.put("ocurrencias", ocurrencias);
+            m.put("articulos", conOcurrencias);
+            m.put("coinciden", r.coinciden().get(patron));
+            porPatron.add(m);
+        }
+
+        List<Object> articulos = new ArrayList<>();
+        for (int i = 0; i < r.posicionesPorArticulo().size(); i++) {
+            Articulo articulo = corpus.articulos().get(i);
+            String texto = articulo.abstractTexto();
+            List<Map<String, Object>> fragmentos = new ArrayList<>();
+            for (Map.Entry<String, List<Integer>> e : r.posicionesPorArticulo().get(i).entrySet()) {
+                for (int posicion : e.getValue()) {
+                    Map<String, Object> f = new LinkedHashMap<>(fragmento(texto, posicion, e.getKey().length()));
+                    f.put("patron", e.getKey());
+                    fragmentos.add(f);
+                }
+            }
+            if (fragmentos.isEmpty()) {
+                continue;
+            }
+            fragmentos.sort((x, y) -> Integer.compare((int) x.get("posicion"), (int) y.get("posicion")));
+            Map<String, Object> m = new LinkedHashMap<>(resumenArticulo(articulo));
+            m.put("fragmentos", fragmentos);
+            articulos.add(m);
+        }
+        Map<String, Object> respuesta = new LinkedHashMap<>();
+        respuesta.put("patrones", r.patrones());
+        respuesta.put("ignorarMayusculas", ignorar);
+        respuesta.put("algoritmos", algoritmos);
+        respuesta.put("coinciden", !r.coinciden().containsValue(false));
+        respuesta.put("porPatron", porPatron);
+        respuesta.put("articulos", articulos);
+        return respuesta;
+    }
+
+    /** Ocurrencia con unos caracteres de contexto a cada lado, para mostrarla resaltada. */
+    private static Map<String, Object> fragmento(String texto, int posicion, int largo) {
+        int desde = Math.max(0, posicion - CONTEXTO_FRAGMENTO);
+        int hasta = Math.min(texto.length(), posicion + largo + CONTEXTO_FRAGMENTO);
+        return Map.of("posicion", posicion,
+                "antes", (desde > 0 ? "…" : "") + texto.substring(desde, posicion),
+                "coincidencia", texto.substring(posicion, posicion + largo),
+                "despues", texto.substring(posicion + largo, hasta) + (hasta < texto.length() ? "…" : ""));
     }
 
     /** Atiende una consulta de la API; los errores de la petición se devuelven como {"error": ...}. */
