@@ -37,6 +37,11 @@ body {
 button, input, select { font: inherit; color: inherit; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .contenedor { max-width: var(--ancho); margin: 0 auto; padding: 0 24px; }
+/* Enlace para saltar la barra con el teclado: solo aparece al recibir el foco. */
+.saltar { position: absolute; left: 12px; top: -48px; z-index: 20; padding: 8px 14px; border-radius: var(--radio);
+  background: var(--tinta); color: #fff; text-decoration: none; font-weight: 500; }
+.saltar:focus { top: 8px; }
+main:focus { outline: none; }
 
 /* ---------- Barra ---------- */
 .barra { background: var(--superficie); border-bottom: 1px solid var(--borde); position: sticky; top: 0; z-index: 10; }
@@ -98,7 +103,7 @@ h3 { margin: 0; font-size: 15px; font-weight: 600; }
   width: min(340px, 72vw); padding: 8px 12px 8px 32px; border: 1px solid var(--borde-fuerte);
   border-radius: var(--radio); background: var(--superficie);
 }
-.campo input:focus { outline: none; border-color: var(--clasico); box-shadow: 0 0 0 3px var(--clasico-suave); }
+.campo input:focus { outline: none; border-color: var(--clasico); box-shadow: 0 0 0 3px #b9cdf0; }
 .casilla { display: inline-flex; align-items: center; gap: 8px; color: var(--tinta-2); font-size: 14px; cursor: pointer; }
 input[type="checkbox"] { accent-color: var(--tinta); width: 15px; height: 15px; }
 
@@ -207,7 +212,8 @@ mark { background: var(--marca); color: var(--tinta); padding: 0 2px; border-rad
 .chip-patron.p3 { background: #efe4f6; } .chip-patron.p4 { background: #f8e1df; } .chip-patron.p5 { background: #f6efcf; }
 .chip-patron.p6 { background: #d9f0ec; } .chip-patron.p7 { background: #e9ebee; } .chip-patron.p8 { background: #fde6f0; }
 .chip-patron.p9 { background: #e3e8f8; }
-.ayuda { margin: -8px 0 16px; color: var(--tinta-3); font-size: 13px; }
+.ayuda { margin: -8px 0 16px; color: var(--tinta-3); font-size: 13px; max-width: 95ch; }
+.ayuda code { font-family: var(--mono); font-size: 12.5px; color: var(--tinta-2); }
 
 /* ---------- Paso a paso de la búsqueda ---------- */
 /* Ancho fijo en píxeles: la regla usa letra más pequeña y debe quedar alineada con el texto. */

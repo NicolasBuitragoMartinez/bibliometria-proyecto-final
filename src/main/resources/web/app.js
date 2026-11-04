@@ -45,7 +45,11 @@ function moverIndicador(pestana) {
 
 function abrirPanel(nombre, { actualizarEnlace = true } = {}) {
   const pestana = pestanas.find((p) => p.dataset.panel === nombre) || pestanas[0];
-  pestanas.forEach((p) => p.setAttribute("aria-selected", String(p === pestana)));
+  pestanas.forEach((p) => {
+    p.setAttribute("aria-selected", String(p === pestana));
+    // Solo la pestaña activa entra en el orden de tabulación; las demás se alcanzan con las flechas.
+    p.tabIndex = p === pestana ? 0 : -1;
+  });
   document.querySelectorAll(".panel").forEach((p) => p.classList.toggle("activo", p.id === pestana.dataset.panel));
   moverIndicador(pestana);
   if (actualizarEnlace && location.hash.slice(1).split("=")[0] !== pestana.dataset.panel) {
@@ -58,13 +62,21 @@ function abrirPanel(nombre, { actualizarEnlace = true } = {}) {
 pestanas.forEach((pestana, i) => {
   pestana.addEventListener("click", () => abrirPanel(pestana.dataset.panel));
   pestana.addEventListener("keydown", (e) => {
-    if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
-    const siguiente = pestanas[(i + (e.key === "ArrowRight" ? 1 : pestanas.length - 1)) % pestanas.length];
+    const destino = { ArrowRight: (i + 1) % pestanas.length, ArrowLeft: (i + pestanas.length - 1) % pestanas.length,
+      Home: 0, End: pestanas.length - 1 }[e.key];
+    if (destino === undefined) return;
+    e.preventDefault();
+    const siguiente = pestanas[destino];
     siguiente.focus();
     abrirPanel(siguiente.dataset.panel);
   });
 });
 window.addEventListener("resize", () => moverIndicador(pestanas.find((p) => p.getAttribute("aria-selected") === "true")));
+// «Saltar al contenido» mueve el foco sin cambiar el enlace (el # de la dirección elige la pestaña).
+$(".saltar").addEventListener("click", (e) => {
+  e.preventDefault();
+  $("#contenido").focus();
+});
 
 // ---------- Corpus ----------
 async function cargarCorpus() {
@@ -482,7 +494,7 @@ async function cargarAgrupamiento(representacion) {
     const dendrogramas = d.resultados
       .map((r) => `<div class="bloque"><div class="bloque-cabeza"><h3>${escapar(r.criterio)}</h3>
         <span class="meta">CCC ${numero(r.ccc, 3)} · corte en k = ${r.mejorK} · ${numero(r.ms, 2)} ms</span></div>
-        <div class="dendrograma">${r.svg}</div>${gruposHtml(r)}</div>`)
+        <div class="dendrograma" role="figure" aria-label="Dendrograma de ${escapar(r.criterio)}; los grupos del corte se listan debajo">${r.svg}</div>${gruposHtml(r)}</div>`)
       .join("");
     $("#agr-resultado").innerHTML = tabla + dendrogramas;
   } catch (e) {
@@ -531,17 +543,17 @@ async function buscar(caso = {}) {
     const tabla = `<div class="bloque"><div class="bloque-cabeza"><h3>Comparación de los algoritmos</h3>
       <span class="meta">preprocesamiento del patrón y búsqueda en los 20 abstracts</span></div>
       <div class="marco"><table class="tabla compacta"><thead><tr><th>Algoritmo</th><th class="num">Comparaciones</th>
-      <th class="num">Alineaciones</th><th class="num">Colisiones</th><th class="num">Preproceso (ms)</th>
+      <th class="num">Alineaciones</th><th class="num">Colisiones</th><th class="num ocultar-movil">Preproceso (ms)</th>
       <th class="num">Búsqueda (ms)</th></tr></thead><tbody>
       ${d.algoritmos.map((a) => `<tr><td>${escapar(a.nombre)}</td><td class="num">${numero(a.comparaciones)}</td>
         <td class="num">${numero(a.ventanas)}</td><td class="num">${a.colisiones}</td>
-        <td class="num">${numero(a.msPreproceso, 4)}</td><td class="num">${numero(a.msBusqueda, 4)}</td></tr>`).join("")}
+        <td class="num ocultar-movil">${numero(a.msPreproceso, 4)}</td><td class="num">${numero(a.msBusqueda, 4)}</td></tr>`).join("")}
       </tbody></table></div></div>`;
     const ocurrencias = d.articulos.length ? `<div class="bloque">${d.articulos
       .map((a) => `<div class="ocurrencia"><h3>${a.numero}. ${escapar(a.titulo)}</h3>
         <span class="meta">${escapar(a.autoresCortos)} (${anioTexto(a)}) · ${a.fragmentos.length} ${a.fragmentos.length === 1 ? "ocurrencia" : "ocurrencias"}</span>
         ${a.fragmentos.map((f) => `<p class="fragmento"><span class="pos">car. ${f.posicion}</span>${escapar(f.antes)}<mark>${escapar(f.coincidencia)}</mark>${escapar(f.despues)}
-          <button type="button" class="enlace-paso" data-articulo="${a.numero}" data-posicion="${f.posicion}">Paso a paso</button></p>`).join("")}
+          <button type="button" class="enlace-paso" data-articulo="${a.numero}" data-posicion="${f.posicion}" aria-label="Paso a paso de la ocurrencia del artículo ${a.numero} en el carácter ${f.posicion}">Paso a paso</button></p>`).join("")}
       </div>`).join("")}</div>` : "";
     const paso = total ? '<div class="bloque" id="pasos"><span class="esqueleto"></span></div>' : "";
     $("#bus-resultado").innerHTML = tabla + paso + ocurrencias;
@@ -586,11 +598,11 @@ async function buscarVarios(patrones) {
           longitud distinta (${multiple.pasadas}) y los demás una vez por patrón (${kmp.pasadas})</span></div>
       <div class="marco"><table class="tabla compacta"><thead><tr><th>Algoritmo</th><th class="num">Pasadas por texto</th>
         <th class="num">Comparaciones</th><th class="num">Alineaciones</th><th class="num">Colisiones</th>
-        <th class="num">Preproceso (ms)</th><th class="num">Búsqueda (ms)</th></tr></thead><tbody>
+        <th class="num ocultar-movil">Preproceso (ms)</th><th class="num">Búsqueda (ms)</th></tr></thead><tbody>
       ${d.algoritmos.map((a, i) => `<tr${i === 0 ? ' class="destacada"' : ""}><td>${escapar(a.nombre)}${i === 0 ? ""
         : ' <span class="meta">× patrón</span>'}</td><td class="num">${a.pasadas}</td><td class="num">${numero(a.comparaciones)}</td>
         <td class="num">${numero(a.ventanas)}</td><td class="num">${a.colisiones}</td>
-        <td class="num">${numero(a.msPreproceso, 4)}</td><td class="num">${numero(a.msBusqueda, 4)}</td></tr>`).join("")}
+        <td class="num ocultar-movil">${numero(a.msPreproceso, 4)}</td><td class="num">${numero(a.msBusqueda, 4)}</td></tr>`).join("")}
       </tbody></table></div>
       <p class="meta" style="margin:12px 0 0">Rabin-Karp multipatrón examinó ${numero(multiple.ventanas)} ventanas, frente a
         ${numero(d.algoritmos[3].ventanas)} de Rabin-Karp ejecutado una vez por patrón: el hash de cada ventana se compara con los de
@@ -609,7 +621,7 @@ async function buscarVarios(patrones) {
       .map((a) => `<div class="ocurrencia"><h3>${a.numero}. ${escapar(a.titulo)}</h3>
         <span class="meta">${escapar(a.autoresCortos)} (${anioTexto(a)}) · ${a.fragmentos.length} ${a.fragmentos.length === 1 ? "ocurrencia" : "ocurrencias"}</span>
         ${a.fragmentos.map((f) => `<p class="fragmento"><span class="pos">car. ${f.posicion}</span><span class="chip-patron p${indice.get(f.patron)}">${escapar(f.patron)}</span>${escapar(f.antes)}<mark>${escapar(f.coincidencia)}</mark>${escapar(f.despues)}
-          <button type="button" class="enlace-paso" data-patron="${escapar(f.patron)}" data-articulo="${a.numero}" data-posicion="${f.posicion}">Paso a paso</button></p>`).join("")}
+          <button type="button" class="enlace-paso" data-patron="${escapar(f.patron)}" data-articulo="${a.numero}" data-posicion="${f.posicion}" aria-label="Paso a paso de «${escapar(f.patron)}» en el artículo ${a.numero}, carácter ${f.posicion}">Paso a paso</button></p>`).join("")}
       </div>`).join("")}</div>` : "";
     const paso = total ? '<div class="bloque" id="pasos"><span class="esqueleto"></span></div>' : "";
     $("#bus-resultado").innerHTML = tabla + resumen + paso + ocurrencias;

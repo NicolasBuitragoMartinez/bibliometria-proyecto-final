@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="estilos.css">
 </head>
 <body>
+  <a class="saltar" href="#contenido">Saltar al contenido</a>
   <header class="barra">
     <div class="contenedor barra-fila">
       <a class="marca" href="#corpus" aria-label="Inicio: corpus">
@@ -27,16 +28,16 @@
       </a>
     </div>
     <nav class="contenedor pestanas" role="tablist" aria-label="Secciones">
-      <button role="tab" class="pestana" data-panel="corpus" aria-selected="true">Corpus</button>
-      <button role="tab" class="pestana" data-panel="ranking" aria-selected="false">Ranking de términos</button>
-      <button role="tab" class="pestana" data-panel="similitud" aria-selected="false">Similitud</button>
-      <button role="tab" class="pestana" data-panel="agrupamiento" aria-selected="false">Agrupamiento</button>
-      <button role="tab" class="pestana" data-panel="busqueda" aria-selected="false">Búsqueda de patrones</button>
+      <button role="tab" class="pestana" id="pestana-corpus" data-panel="corpus" aria-controls="corpus" aria-selected="true">Corpus</button>
+      <button role="tab" class="pestana" id="pestana-ranking" data-panel="ranking" aria-controls="ranking" aria-selected="false" tabindex="-1">Ranking de términos</button>
+      <button role="tab" class="pestana" id="pestana-similitud" data-panel="similitud" aria-controls="similitud" aria-selected="false" tabindex="-1">Similitud</button>
+      <button role="tab" class="pestana" id="pestana-agrupamiento" data-panel="agrupamiento" aria-controls="agrupamiento" aria-selected="false" tabindex="-1">Agrupamiento</button>
+      <button role="tab" class="pestana" id="pestana-busqueda" data-panel="busqueda" aria-controls="busqueda" aria-selected="false" tabindex="-1">Búsqueda de patrones</button>
       <span class="indicador" aria-hidden="true"></span>
     </nav>
   </header>
 
-  <main class="contenedor">
+  <main class="contenedor" id="contenido" tabindex="-1">
     <section id="corpus" class="panel activo" role="tabpanel" aria-labelledby="t-corpus">
       <div class="encabezado">
         <h1 id="t-corpus">Corpus</h1>
