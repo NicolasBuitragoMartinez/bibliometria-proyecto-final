@@ -73,7 +73,8 @@ public final class Servidor {
         this.corpus = corpus;
     }
 
-    public void iniciar(int puerto) throws IOException {
+    /** Arranca el servidor; con puerto 0 el sistema elige uno libre (lo usan las pruebas). */
+    public HttpServer iniciar(int puerto) throws IOException {
         HttpServer servidor = HttpServer.create(new InetSocketAddress(puerto), 0);
         servidor.createContext("/api/articulos", ex -> responder(ex, p -> articulos()));
         servidor.createContext("/api/ranking", ex -> responder(ex, p -> ranking()));
@@ -83,10 +84,21 @@ public final class Servidor {
         servidor.createContext("/api/busqueda-multiple", ex -> responder(ex, this::busquedaMultiple));
         servidor.createContext("/api/pasos", ex -> responder(ex, this::pasos));
         servidor.createContext("/api/matriz", ex -> responder(ex, this::matriz));
+        servidor.createContext("/api/", ex -> responder(ex, p -> {
+            throw new NoEncontrado("No existe la consulta " + ex.getRequestURI().getPath());
+        }));
         servidor.createContext("/", this::recursoEstatico);
         servidor.setExecutor(Executors.newFixedThreadPool(4));
         servidor.start();
-        System.out.println("Aplicación disponible en http://localhost:" + puerto);
+        System.out.println("Aplicación disponible en http://localhost:" + servidor.getAddress().getPort());
+        return servidor;
+    }
+
+    /** Consulta de la API que no existe (respuesta 404). */
+    private static final class NoEncontrado extends RuntimeException {
+        NoEncontrado(String mensaje) {
+            super(mensaje);
+        }
     }
 
     private Map<String, Object> articulos() {
@@ -176,14 +188,15 @@ public final class Servidor {
     }
 
     private Map<String, Object> similitud(Map<String, String> parametros) {
-        List<Integer> numeros = new ArrayList<>();
+        Set<Integer> distintos = new LinkedHashSet<>();
         for (String parte : parametros.getOrDefault("articulos", "").split(",")) {
             if (!parte.isBlank()) {
-                numeros.add(Integer.parseInt(parte.strip()));
+                distintos.add(entero("articulos", parte));
             }
         }
+        List<Integer> numeros = new ArrayList<>(distintos);
         if (numeros.size() < 2) {
-            throw new IllegalArgumentException("Seleccione al menos dos artículos");
+            throw new IllegalArgumentException("Seleccione al menos dos artículos distintos (por ejemplo, articulos=11,16)");
         }
         int[] indices = numeros.stream().mapToInt(corpus::indice).toArray();
         List<Object> algoritmos = new ArrayList<>();
@@ -281,8 +294,16 @@ public final class Servidor {
         int numero = entero(parametros, "articulo", 1);
         Articulo articulo = corpus.articulos().get(corpus.indice(numero));
         String abstractTexto = articulo.abstractTexto();
-        int posicion = Math.max(0, Math.min(entero(parametros, "posicion", 0), abstractTexto.length()));
-        long primo = "grande".equals(parametros.get("q")) ? RabinKarp.PRIMO : 13;
+        int posicion = entero(parametros, "posicion", 0);
+        if (posicion < 0 || posicion > abstractTexto.length()) {
+            throw new IllegalArgumentException("La posición debe estar entre 0 y " + abstractTexto.length()
+                    + ", la longitud del abstract del artículo " + numero);
+        }
+        String q = parametros.getOrDefault("q", "pequeno");
+        if (!"pequeno".equals(q) && !"grande".equals(q)) {
+            throw new IllegalArgumentException("El parámetro q debe ser pequeno (q = 13) o grande (q = 1.000.000.007)");
+        }
+        long primo = "grande".equals(q) ? RabinKarp.PRIMO : 13;
         int[] rango = PasoAPaso.oracion(abstractTexto, posicion, patron.length());
         String texto = abstractTexto.substring(rango[0], rango[1]);
 
@@ -403,11 +424,25 @@ public final class Servidor {
     }
 
     private static int entero(Map<String, String> parametros, String nombre, int porDefecto) {
+        return entero(nombre, parametros.getOrDefault(nombre, String.valueOf(porDefecto)));
+    }
+
+    private static int entero(String nombre, String valor) {
         try {
-            return Integer.parseInt(parametros.getOrDefault(nombre, String.valueOf(porDefecto)).strip());
+            return Integer.parseInt(valor.strip());
         } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("El parámetro " + nombre + " debe ser un número entero");
+            throw new IllegalArgumentException("El parámetro " + nombre + " debe ser un número entero (se recibió «"
+                    + valor + "»)");
         }
+    }
+
+    /** Parámetro mayusculas: si (ignorar mayúsculas, por defecto) o no. */
+    private static boolean ignorarMayusculas(Map<String, String> parametros) {
+        String valor = parametros.getOrDefault("mayusculas", "si");
+        if (!"si".equals(valor) && !"no".equals(valor)) {
+            throw new IllegalArgumentException("El parámetro mayusculas debe ser si o no");
+        }
+        return "si".equals(valor);
     }
 
     private Map<String, Object> busqueda(Map<String, String> parametros) {
@@ -415,7 +450,7 @@ public final class Servidor {
         if (patron.isEmpty() || patron.length() > MAXIMO_PATRON) {
             throw new IllegalArgumentException("Escriba un patrón de 1 a " + MAXIMO_PATRON + " caracteres");
         }
-        boolean ignorar = !"no".equals(parametros.get("mayusculas"));
+        boolean ignorar = ignorarMayusculas(parametros);
         List<PorAlgoritmo> resultados = BusquedaCorpus.buscar(corpus.articulos(), patron, ignorar);
 
         List<Object> algoritmos = new ArrayList<>();
@@ -468,7 +503,7 @@ public final class Servidor {
      * Boyer-Moore y Rabin-Karp ejecutados una vez por patrón, y las ocurrencias de cada patrón.
      */
     private Map<String, Object> busquedaMultiple(Map<String, String> parametros) {
-        boolean ignorar = !"no".equals(parametros.get("mayusculas"));
+        boolean ignorar = ignorarMayusculas(parametros);
         Set<String> patrones = new LinkedHashSet<>();
         for (String parte : parametros.getOrDefault("patrones", "").split(",")) {
             String patron = parte.strip();
@@ -555,15 +590,32 @@ public final class Servidor {
                 "despues", texto.substring(posicion + largo, hasta) + (hasta < texto.length() ? "…" : ""));
     }
 
-    /** Atiende una consulta de la API; los errores de la petición se devuelven como {"error": ...}. */
+    /**
+     * Atiende una consulta de la API. Los errores se devuelven como {"error": ...}: 400 si un parámetro
+     * no es válido, 404 si la consulta no existe, 405 si el método no es GET y 500 solo ante un error
+     * interno inesperado, que además se registra en la consola del servidor.
+     */
     private void responder(HttpExchange intercambio, Function<Map<String, String>, Object> atender) throws IOException {
         int codigo = 200;
         Object cuerpo;
         try {
-            cuerpo = atender.apply(parametros(intercambio));
+            if (!"GET".equals(intercambio.getRequestMethod())) {
+                codigo = 405;
+                intercambio.getResponseHeaders().set("Allow", "GET");
+                cuerpo = Map.of("error", "La API solo acepta consultas GET");
+            } else {
+                cuerpo = atender.apply(parametros(intercambio));
+            }
+        } catch (NoEncontrado e) {
+            codigo = 404;
+            cuerpo = Map.of("error", e.getMessage());
+        } catch (IllegalArgumentException e) {
+            codigo = 400;
+            cuerpo = Map.of("error", e.getMessage() == null ? "Parámetros no válidos" : e.getMessage());
         } catch (RuntimeException e) {
-            codigo = e instanceof IllegalArgumentException ? 400 : 500;
-            cuerpo = Map.of("error", e.getMessage() == null ? e.toString() : e.getMessage());
+            codigo = 500;
+            System.err.println("Error interno en " + intercambio.getRequestURI() + ": " + e);
+            cuerpo = Map.of("error", "Error interno del servidor: " + (e.getMessage() == null ? e : e.getMessage()));
         }
         enviar(intercambio, codigo, "application/json; charset=utf-8", Json.de(cuerpo).getBytes(StandardCharsets.UTF_8));
     }
@@ -619,8 +671,12 @@ public final class Servidor {
         for (String par : consulta.split("&")) {
             String[] partes = par.split("=", 2);
             String valor = partes.length > 1 ? partes[1] : "";
-            parametros.put(URLDecoder.decode(partes[0], StandardCharsets.UTF_8),
-                    URLDecoder.decode(valor, StandardCharsets.UTF_8));
+            try {
+                parametros.put(URLDecoder.decode(partes[0], StandardCharsets.UTF_8),
+                        URLDecoder.decode(valor, StandardCharsets.UTF_8));
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("La consulta tiene caracteres mal codificados: " + par);
+            }
         }
         return parametros;
     }
