@@ -3,3 +3,7 @@ ia/modelos/
 *.md
 docs/
 resultados/
+.git/
+.idea/
+.vscode/
+.claude/

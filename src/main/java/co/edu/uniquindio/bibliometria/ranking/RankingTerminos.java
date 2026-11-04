@@ -107,7 +107,7 @@ public final class RankingTerminos {
             return;
         }
         Reporte.imprimirCorpus(corpus.documentos(), DelimitadorAbstract.MAX_PALABRAS);
-        Reporte.imprimirTabla1(corpus.documentos(), corpus.totalTokens(), corpus.frecuencias(), corpus.k());
+        Reporte.imprimirCifras(corpus.documentos(), corpus.totalTokens(), corpus.frecuencias(), corpus.k());
 
         // 2. Medición de tiempos. Va antes de cualquier otro ordenamiento para que el tiempo
         //    "en frío" sea de verdad la primera ejecución de cada algoritmo.

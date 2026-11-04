@@ -63,40 +63,30 @@ public final class NeedlemanWunsch implements AlgoritmoSimilitud {
         return f;
     }
 
+    /** Alineamiento óptimo: recorre el camino de F[0][0] a F[m][n] y escribe un par por cada paso. */
     public static Alineamiento alinear(List<String> a, List<String> b) {
         int[][] f = matriz(a, b);
+        List<int[]> camino = camino(a, b, f);
         List<String> alineadaA = new ArrayList<>();
         List<String> alineadaB = new ArrayList<>();
         int coincidencias = 0;
-        int i = a.size();
-        int j = b.size();
-        while (i > 0 || j > 0) {
-            if (i > 0 && j > 0 && f[i][j] == f[i - 1][j - 1] + puntaje(a.get(i - 1), b.get(j - 1))) {
-                alineadaA.add(a.get(i - 1));
-                alineadaB.add(b.get(j - 1));
-                if (a.get(i - 1).equals(b.get(j - 1))) {
-                    coincidencias++;
-                }
-                i--;
-                j--;
-            } else if (i > 0 && f[i][j] == f[i - 1][j] + HUECO) {
-                alineadaA.add(a.get(i - 1));
-                alineadaB.add(SIMBOLO_HUECO);
-                i--;
-            } else {
-                alineadaA.add(SIMBOLO_HUECO);
-                alineadaB.add(b.get(j - 1));
-                j--;
+        for (int k = 1; k < camino.size(); k++) {
+            int i = camino.get(k - 1)[0];
+            int j = camino.get(k - 1)[1];
+            boolean avanzaA = camino.get(k)[0] > i;
+            boolean avanzaB = camino.get(k)[1] > j;
+            alineadaA.add(avanzaA ? a.get(i) : SIMBOLO_HUECO);
+            alineadaB.add(avanzaB ? b.get(j) : SIMBOLO_HUECO);
+            if (avanzaA && avanzaB && a.get(i).equals(b.get(j))) {
+                coincidencias++;
             }
         }
-        Collections.reverse(alineadaA);
-        Collections.reverse(alineadaB);
         return new Alineamiento(alineadaA, alineadaB, f[a.size()][b.size()], coincidencias);
     }
 
     /**
-     * Camino óptimo de F[0][0] a F[m][n], con la misma preferencia que alinear ante un empate:
-     * diagonal, después arriba (hueco en b) y por último izquierda (hueco en a).
+     * Camino óptimo de F[0][0] a F[m][n]. Se reconstruye desde F[m][n] y, ante un empate, se prefiere
+     * la diagonal, después arriba (hueco en b) y por último izquierda (hueco en a).
      */
     public static List<int[]> camino(List<String> a, List<String> b, int[][] f) {
         List<int[]> camino = new ArrayList<>();

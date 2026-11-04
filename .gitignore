@@ -1,3 +1,27 @@
+# Compilación de Maven
 target/
+
+# Modelos descargados y caché de Python
 ia/modelos/
-ia/__pycache__/
+__pycache__/
+*.pyc
+.venv/
+
+# IDE y editores
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+.factorypath
+
+# Carpetas locales de los asistentes y del sistema operativo
+.claude/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Archivos temporales de Word y registros
+~$*
+*.log

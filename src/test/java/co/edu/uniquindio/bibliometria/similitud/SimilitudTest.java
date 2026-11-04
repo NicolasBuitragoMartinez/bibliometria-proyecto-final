@@ -32,6 +32,19 @@ class SimilitudTest {
     }
 
     @Test
+    void secuenciasVacias() {
+        assertEquals(1.0, Levenshtein.similitud("", ""), 1e-12);
+        assertEquals(0.0, Levenshtein.similitud("", "ai"), 1e-12);
+        Alineamiento vacio = NeedlemanWunsch.alinear(List.of(), List.of());
+        assertEquals(0, vacio.puntaje());
+        assertEquals(1.0, vacio.identidad(), 1e-12);
+        Alineamiento contraHuecos = NeedlemanWunsch.alinear(List.of("ai", "education"), List.of());
+        assertEquals(List.of("-", "-"), contraHuecos.b());
+        assertEquals(-2, contraHuecos.puntaje());
+        assertEquals(0.0, contraHuecos.identidad(), 1e-12);
+    }
+
+    @Test
     void jaccardIgnoraRepeticionesYOrden() {
         assertEquals(1.0 / 3, Jaccard.similitud(List.of("ai", "ai", "education"), List.of("ai", "learning")), 1e-12);
         assertEquals(1.0, Jaccard.similitud(List.of("a", "b"), List.of("b", "a")), 1e-12);

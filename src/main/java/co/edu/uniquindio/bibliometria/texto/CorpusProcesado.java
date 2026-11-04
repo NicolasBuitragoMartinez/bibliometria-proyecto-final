@@ -2,7 +2,6 @@ package co.edu.uniquindio.bibliometria.texto;
 
 import java.text.Normalizer;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -116,21 +115,5 @@ public final class CorpusProcesado {
                     + "; ejecute ia/generar_embeddings.py");
         }
         return vectores[i];
-    }
-
-    /** Matriz de vectores TF-IDF densos (filas = documentos, columnas = vocabulario completo). */
-    public double[][] matrizTfIdf() {
-        List<String> vocabulario = new ArrayList<>(frecuenciaDocumental.keySet());
-        Map<String, Integer> columna = new HashMap<>();
-        for (int j = 0; j < vocabulario.size(); j++) {
-            columna.put(vocabulario.get(j), j);
-        }
-        double[][] matriz = new double[tamano()][vocabulario.size()];
-        for (int i = 0; i < tamano(); i++) {
-            for (Map.Entry<String, Double> e : tfidf.get(i).entrySet()) {
-                matriz[i][columna.get(e.getKey())] = e.getValue();
-            }
-        }
-        return matriz;
     }
 }

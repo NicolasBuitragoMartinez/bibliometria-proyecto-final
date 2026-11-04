@@ -60,6 +60,18 @@ class BusquedaTest {
     }
 
     @Test
+    void textoOPatronVaciosYMayusculas() {
+        for (AlgoritmoBusqueda a : ALGORITMOS) {
+            assertEquals(List.of(), a.buscar("", "ai").posiciones(), a.nombre() + " con texto vacío");
+            assertEquals(List.of(), a.buscar("learning", "").posiciones(), a.nombre() + " con patrón vacío");
+            assertEquals(List.of(0), a.buscar("ai", "ai").posiciones(), a.nombre() + " con texto igual al patrón");
+            assertEquals(List.of(), a.buscar("Learning", "learning").posiciones(), a.nombre() + " distingue mayúsculas");
+            assertEquals(List.of(4), a.buscar("año educación", "educ").posiciones(), a.nombre() + " fuera de ASCII");
+        }
+        assertEquals("learning ai", BusquedaCorpus.minusculas("LEARNING Ai"));
+    }
+
+    @Test
     void rabinKarpConPrimoPequenoDetectaColisiones() {
         String texto = "this study begins with a content analysis that explores gai's transformative impact";
         AlgoritmoBusqueda.Resultado r = new RabinKarp(13).buscar(texto, "analysis");

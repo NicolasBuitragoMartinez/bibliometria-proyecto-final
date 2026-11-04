@@ -45,8 +45,8 @@ public final class Reporte {
         System.out.println();
     }
 
-    /** Cifras de la Tabla 1 del documento. */
-    public static void imprimirTabla1(List<Articulo> documentos, int tokens, Termino[] frecuencias, int k) {
+    /** Cifras del corpus para el ranking (Tabla 21 del documento técnico). */
+    public static void imprimirCifras(List<Articulo> documentos, int tokens, Termino[] frecuencias, int k) {
         int palabras = documentos.stream().mapToInt(Reporte::palabras).sum();
         int max = 0;
         int min = Integer.MAX_VALUE;
